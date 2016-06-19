@@ -60,7 +60,7 @@ func TestNodeDeserialization(t *testing.T) {
 		},
 		{
 			in:  `{"a":"b"},`,
-			err: "invalid character ',' after top-level value", // original encoding/json package error
+			err: "invalid character ','  looking for beginning of value", // original encoding/json package error
 		},
 		{
 			in:  `{"a":"b","c":"d"}`,
@@ -177,6 +177,9 @@ func BenchmarkNodeDeserialization5(b *testing.B) { benchmarkNodeDeserialization(
 // ========== Utility ==========
 
 func nodeString(node *Node) string {
+	if node == nil {
+		return "<nil>"
+	}
 	if b, err := node.Serialize(); err != nil {
 		return "<unserializable node>"
 	} else {
@@ -187,11 +190,7 @@ func nodeString(node *Node) string {
 func nodesString(nodes []*Node) string {
 	s := make([]string, len(nodes))
 	for i, node := range nodes {
-		if node != nil {
-			s[i] = nodeString(node)
-		} else {
-			s[i] = "<nil>"
-		}
+		s[i] = nodeString(node)
 	}
 	return "\t" + strings.Join(s, "\n\t")
 }
@@ -201,6 +200,9 @@ func errEqual(want, got error) bool {
 }
 
 func nodeEqual(want, got *Node) bool {
+	if got == nil {
+		return false
+	}
 	if got.Key != want.Key || got.Value != want.Value {
 		return false
 	}

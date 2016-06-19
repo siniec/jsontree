@@ -66,13 +66,13 @@ func (node *Node) Serialize() ([]byte, error) {
 	}
 }
 
-func (node *Node) DeserializeFrom(r io.Reader) error {
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(r); err != nil {
-		return err
-	}
-	return node.Deserialize(buf.Bytes())
-}
+// func (node *Node) DeserializeFrom(r io.Reader) error {
+// 	var buf bytes.Buffer
+// 	if _, err := buf.ReadFrom(r); err != nil {
+// 		return err
+// 	}
+// 	return node.Deserialize(buf.Bytes())
+// }
 
 func (node *Node) Deserialize(b []byte) error {
 	var parse func(node *Node, obj interface{}) error
