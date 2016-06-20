@@ -131,14 +131,15 @@ func TestWriter(t *testing.T) {
 		if got := buf.String(); test.want != got {
 			t.Errorf("Wrong data saved\nWant %v\nGot  %v", test.want, got)
 		}
-		// Writing a node using node.Serialize() and by calling Writer w with w.WriteParent(node.Key)
+		// Writing a node using SerializeNode() and by calling Writer w with w.WriteParent(node.Key)
 		// and then w.WriteNode() for each of node's Nodes should produce the same output
 		if test.parent != "" {
 			parent := &Node{Key: test.parent, Nodes: test.nodes}
-			if b, err := parent.Serialize(); err != nil {
-				t.Fatalf("Node.Serialize() failed: %v", err)
-			} else if want, got := string(b), buf.String(); want != got {
-				t.Errorf("Node.Serialize() and Writer do not produce the same result\nWant %v\nGot  %v", want, got)
+			var buf2 bytes.Buffer
+			if err := SerializeNode(parent, &buf2); err != nil {
+				t.Fatalf("SerializeNode() failed: %v", err)
+			} else if want, got := buf2.String(), buf.String(); want != got {
+				t.Errorf("SerializeNode() and Writer do not produce the same result\nWant %v\nGot  %v", want, got)
 			}
 		}
 	}

@@ -103,13 +103,13 @@ func (scanner *Scanner) Scan() bool {
 		}
 
 		b.WriteByte('}')
-		node := new(Node)
-		if err := node.Deserialize(b.Bytes()); err != nil {
+		if node, err := DeserializeNode(&b); err != nil {
 			scanner.err = fmt.Errorf("Error deserializing node: %v", err)
 			return false
+		} else {
+			scanner.node = node
+			return true
 		}
-		scanner.node = node
-		return true
 	}
 }
 
