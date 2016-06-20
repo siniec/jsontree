@@ -1,55 +1,39 @@
 package jsontree
 
-import (
-	"io"
-)
-
 type Node struct {
 	Key   string
 	Value string
 	Nodes []*Node
 }
 
-func SerializeNode(node *Node, w io.Writer) error {
-	return serializeNode(node, w, true)
-}
-
-func serializeNode(node *Node, w io.Writer, wrapped bool) error {
-	if wrapped {
-		if _, err := w.Write([]byte{'{'}); err != nil {
-			return err
-		}
-	}
-	if _, err := w.Write([]byte(`"` + node.Key + `":`)); err != nil {
-		return err
-	}
-	if node.Value != "" {
-		if _, err := w.Write([]byte(`"` + node.Value + `"`)); err != nil {
-			return err
-		}
-	} else {
-		if _, err := w.Write([]byte{'{'}); err != nil {
-			return err
-		}
-		n := len(node.Nodes)
-		for i, child := range node.Nodes {
-			if err := serializeNode(child, w, false); err != nil {
-				return err
+func (node *Node) get(path ...string) *Node {
+	// no need to check len(path). get is only called by getOrAdd, which does that already
+	key := path[0]
+	for _, child := range node.Nodes {
+		if child.Key == key {
+			if len(path) == 1 {
+				return child
+			} else {
+				return child.get(path[1:]...)
 			}
-			if hasMoreChildren := i < n-1; hasMoreChildren {
-				if _, err := w.Write([]byte{','}); err != nil {
-					return err
-				}
-			}
-		}
-		if _, err := w.Write([]byte{'}'}); err != nil {
-			return err
-		}
-	}
-	if wrapped {
-		if _, err := w.Write([]byte{'}'}); err != nil {
-			return err
 		}
 	}
 	return nil
+}
+
+func (node *Node) getOrAdd(path ...string) *Node {
+	if len(path) == 0 {
+		return nil
+	}
+	key := path[0]
+	n := node.get(key)
+	if n == nil {
+		n = &Node{Key: key}
+		node.Nodes = append(node.Nodes, n)
+	}
+	if len(path) == 1 {
+		return n
+	} else {
+		return n.getOrAdd(path[1:]...)
+	}
 }

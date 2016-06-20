@@ -24,37 +24,6 @@ func DeserializeNode(r io.Reader) (*Node, error) {
 	return node, p.Err()
 }
 
-func (node *Node) get(path ...string) *Node {
-	key := path[0]
-	for _, child := range node.Nodes {
-		if child.Key == key {
-			if len(path) == 1 {
-				return child
-			} else {
-				return child.get(path[1:]...)
-			}
-		}
-	}
-	return nil
-}
-
-func (node *Node) getOrAdd(path ...string) *Node {
-	if len(path) == 0 {
-		return nil
-	}
-	key := path[0]
-	n := node.get(key)
-	if n == nil {
-		n = &Node{Key: key}
-		node.Nodes = append(node.Nodes, n)
-	}
-	if len(path) == 1 {
-		return n
-	} else {
-		return n.getOrAdd(path[1:]...)
-	}
-}
-
 type readFn func() (next readFn, err error)
 
 type parser struct {
