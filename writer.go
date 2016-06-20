@@ -49,7 +49,7 @@ func (writer *Writer) WriteNode(node *Node) error {
 			return err
 		}
 	}
-	return node.serializeTo(w, false)
+	return serializeNode(node, w, false)
 }
 
 func (writer *Writer) Close() error {

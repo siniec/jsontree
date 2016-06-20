@@ -4,16 +4,24 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"strings"
 )
 
-type PathAndNode struct {
-	Path []string
-	Node *Node
-}
-
-func (pn *PathAndNode) String() string {
-	return fmt.Sprintf("{ %s:%v }\n", strings.Join(pn.Path, "/"), pn.Node)
+func DeserializeNode(r io.Reader) (*Node, error) {
+	node := new(Node)
+	p := newParser(r)
+	for p.Scan() {
+		path, value := p.Data()
+		node.Key = path[0]
+		if len(path) == 1 {
+			if node.Value != "" {
+				return node, fmt.Errorf("invalid json. Expected 1 root node")
+			}
+			node.Value = value
+		} else {
+			node.getOrAdd(path[1:]...).Value = value
+		}
+	}
+	return node, p.Err()
 }
 
 func (node *Node) get(path ...string) *Node {

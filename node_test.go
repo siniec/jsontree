@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestNodeSerialization(t *testing.T) {
+func TestSerializeNode(t *testing.T) {
 	node := &Node{
 		Key: "data",
 		Nodes: []*Node{
@@ -32,23 +32,14 @@ func TestNodeSerialization(t *testing.T) {
 	want := `{"data":{"1":{"a":"v1","b":{"i":"v2"}},"2":{"a":"v3","b":{"i":"v4"}}}}`
 
 	// SerializeTo()
-	if err := node.SerializeTo(&buf); err != nil {
-		t.Errorf("SerializeTo() returned error: %v", err)
+	if err := SerializeNode(node, &buf); err != nil {
+		t.Errorf("Unexpected error: %v", err)
 	} else if got := buf.String(); want != got {
-		t.Errorf("SerializeTo wrote wrong content.\nWant %s\nGot  %s", want, got)
-	}
-
-	// Serialize()
-	if got, err := node.Serialize(); err != nil {
-		t.Errorf("Serialize() returned error: %v", err)
-	} else {
-		if want != string(got) {
-			t.Errorf("Serialize() returned wrong result.\nWant %s\nGot  %s", want, string(got))
-		}
+		t.Errorf("Wrong JSON written.\nWant %s\nGot  %s", want, got)
 	}
 }
 
-func TestNodeDeserialization(t *testing.T) {
+func TestDeserializeNode(t *testing.T) {
 	tests := []struct {
 		in   string
 		want *Node
@@ -126,33 +117,21 @@ func TestNodeDeserialization(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		for _, stream := range []bool{true, false} {
-			node := new(Node)
-			var err error
-			var name string
-			if stream {
-				name = fmt.Sprintf("DeserializeFrom(%s)", test.in)
-				err = node.DeserializeFrom(bytes.NewReader([]byte(test.in)))
-			} else {
-				name = fmt.Sprintf("Deserialize(%s)", test.in)
-				err = node.Deserialize([]byte(test.in))
+		node, err := DeserializeNode(bytes.NewReader([]byte(test.in)))
+		if test.err != "" {
+			want := fmt.Errorf(test.err)
+			if !errEqual(want, err) {
+				t.Errorf("%s\nWrong error.\nWant %v\nGot  %v", test.in, want, err)
 			}
-
-			if test.err != "" {
-				want := fmt.Errorf(test.err)
-				if !errEqual(want, err) {
-					t.Errorf("%s\nWrong error.\nWant %v\nGot  %v", name, want, err)
-				}
+			continue
+		} else {
+			if err != nil {
+				t.Errorf("%s\nUnexpected error %v", test.in, err)
 				continue
-			} else {
-				if err != nil {
-					t.Errorf("%s\nUnexpected error %v", name, err)
-					continue
-				}
 			}
-			if !nodeEqual(node, test.want) {
-				t.Errorf("%s: Node was not as expected\nWant %v\nGot  %v", name, nodeString(test.want), nodeString(node))
-			}
+		}
+		if !nodeEqual(node, test.want) {
+			t.Errorf("%s: Node was not as expected\nWant %v\nGot  %v", test.in, nodeString(test.want), nodeString(node))
 		}
 	}
 }
@@ -169,16 +148,17 @@ var benchmarks = struct {
 }{}
 
 func init() {
-	const n = 6
+	const n = 5
 	benchmarks.serialization.nodes = make([]*Node, n)
 	benchmarks.deserialization.ins = make([][]byte, n)
 	for i := 0; i < n; i++ {
 		node := getTestNode(i, i)
 		benchmarks.serialization.nodes[i] = node
-		if b, err := node.Serialize(); err != nil {
+		var buf bytes.Buffer
+		if err := SerializeNode(node, &buf); err != nil {
 			panic(err)
 		} else {
-			benchmarks.deserialization.ins[i] = b
+			benchmarks.deserialization.ins[i] = buf.Bytes()
 		}
 	}
 }
@@ -205,7 +185,7 @@ func getTestNode(width, depth int) *Node {
 func benchmarkNodeSerialization(n int, b *testing.B) {
 	node := benchmarks.serialization.nodes[n-1]
 	for i := 0; i < b.N; i++ {
-		if err := node.SerializeTo(ioutil.Discard); err != nil {
+		if err := SerializeNode(node, ioutil.Discard); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
 	}
@@ -214,8 +194,7 @@ func benchmarkNodeSerialization(n int, b *testing.B) {
 func benchmarkNodeDeserialization(n int, b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewBuffer(benchmarks.deserialization.ins[n-1])
-		node := new(Node)
-		if err := node.DeserializeFrom(r); err != nil {
+		if _, err := DeserializeNode(r); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
 	}
@@ -232,7 +211,6 @@ func BenchmarkNodeDeserialization2(b *testing.B) { benchmarkNodeDeserialization(
 func BenchmarkNodeDeserialization3(b *testing.B) { benchmarkNodeDeserialization(3, b) }
 func BenchmarkNodeDeserialization4(b *testing.B) { benchmarkNodeDeserialization(4, b) }
 func BenchmarkNodeDeserialization5(b *testing.B) { benchmarkNodeDeserialization(5, b) }
-func BenchmarkNodeDeserialization6(b *testing.B) { benchmarkNodeDeserialization(6, b) }
 
 // ========== Utility ==========
 
@@ -240,10 +218,11 @@ func nodeString(node *Node) string {
 	if node == nil {
 		return "<nil>"
 	}
-	if b, err := node.Serialize(); err != nil {
+	var buf bytes.Buffer
+	if err := SerializeNode(node, &buf); err != nil {
 		return "<unserializable node>"
 	} else {
-		return string(b)
+		return buf.String()
 	}
 }
 
