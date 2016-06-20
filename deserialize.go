@@ -6,14 +6,16 @@ import (
 	"io"
 )
 
-func DeserializeNode(r io.Reader) (*Node, error) {
+type GetValueFn func() Value
+
+func DeserializeNode(r io.Reader, getValFn GetValueFn) (*Node, error) {
 	node := new(Node)
-	p := newParser(r)
+	p := newParser(r, getValFn)
 	for p.Scan() {
 		path, value := p.Data()
 		node.Key = path[0]
 		if len(path) == 1 {
-			if node.Value != "" {
+			if node.Value != nil {
 				return node, fmt.Errorf("invalid json. Expected 1 root node")
 			}
 			node.Value = value
@@ -28,16 +30,17 @@ type readFn func() (next readFn, err error)
 
 type parser struct {
 	r     *bufio.Reader
+	valFn GetValueFn
 	next  readFn
 	err   error
 	mode  int
 	path  stack
-	value string
+	value Value
 	eof   bool
 }
 
-func newParser(r io.Reader) *parser {
-	p := &parser{}
+func newParser(r io.Reader, getValFn GetValueFn) *parser {
+	p := &parser{valFn: getValFn}
 	if br, ok := r.(*bufio.Reader); ok {
 		p.r = br
 	} else {
@@ -51,9 +54,9 @@ func (p *parser) Scan() bool {
 	if p.err != nil {
 		return false
 	}
-	p.value = ""
+	p.value = nil
 	// Scan until we've hit a value
-	for p.value == "" {
+	for p.value == nil {
 		p.next, p.err = p.next()
 		if p.err != nil {
 			return false
@@ -62,7 +65,7 @@ func (p *parser) Scan() bool {
 	return true
 }
 
-func (p *parser) Data() (path []string, value string) {
+func (p *parser) Data() (path []string, value Value) {
 	path = p.path
 	value = p.value
 	return path, value
@@ -181,7 +184,8 @@ func (p *parser) readQuotedValue() (readFn, error) {
 	if bs, err := p.readQuotedString(); err != nil {
 		return nil, err
 	} else {
-		p.value = string(bs)
+		p.value = p.valFn()
+		p.err = p.value.Deserialize(bs)
 	}
 	// Following the value is either a sibling node or a closing bracket
 	if bs, err := p.r.Peek(1); err != nil {

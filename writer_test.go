@@ -26,7 +26,7 @@ func TestWriterWriteParent(t *testing.T) {
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		node := &Node{Key: "k", Value: "v"}
+		node := &Node{Key: "k", Value: &TestValue{"v"}}
 		if err := w.WriteNode(node); err != nil {
 			t.Fatalf("WriteNode() return error: %v", err)
 		}
@@ -64,7 +64,7 @@ func TestWriterWriteNode(t *testing.T) {
 			t.Fatalf("Close() return error: %v", err)
 		}
 		l := buf.Len()
-		node := &Node{Key: "k", Value: "v"}
+		node := &Node{Key: "k", Value: &TestValue{"v"}}
 		want := fmt.Errorf("the writer is closed")
 		if err := w.WriteNode(node); !errEqual(want, err) {
 			t.Errorf("Calling WriteNode() after calling Close() return wrong error.\nWant %v\nGot  %v", want, err)
@@ -75,6 +75,7 @@ func TestWriterWriteNode(t *testing.T) {
 }
 
 func TestWriter(t *testing.T) {
+	val := func(s string) *TestValue { return &TestValue{s} }
 	tests := []struct {
 		name   string
 		parent string
@@ -95,9 +96,20 @@ func TestWriter(t *testing.T) {
 		{
 			name: "Normal nodes slice without parent",
 			nodes: []*Node{
-				&Node{Key: "a", Nodes: []*Node{&Node{Key: "b", Value: "v1"}, &Node{Key: "c", Nodes: []*Node{&Node{Key: "d", Value: "v2"}, &Node{Key: "e", Value: "v3"}}}}},
-				&Node{Key: "f", Nodes: []*Node{&Node{Key: "g", Value: "v4"}}},
-				&Node{Key: "h", Nodes: []*Node{&Node{Key: "i", Nodes: []*Node{&Node{Key: "j", Value: "v5"}}}}},
+				&Node{Key: "a", Nodes: []*Node{
+					&Node{Key: "b", Value: val("v1")},
+					&Node{Key: "c", Nodes: []*Node{
+						&Node{Key: "d", Value: val("v2")},
+						&Node{Key: "e", Value: val("v3")},
+					}},
+				}},
+				&Node{Key: "f", Nodes: []*Node{
+					&Node{Key: "g", Value: val("v4")}}},
+				&Node{Key: "h", Nodes: []*Node{
+					&Node{Key: "i", Nodes: []*Node{
+						&Node{Key: "j", Value: val("v5")},
+					}},
+				}},
 			},
 			want: `{"a":{"b":"v1","c":{"d":"v2","e":"v3"}},"f":{"g":"v4"},"h":{"i":{"j":"v5"}}}`,
 		},
@@ -105,9 +117,20 @@ func TestWriter(t *testing.T) {
 			name:   "Normal nodes slice with parent",
 			parent: "root",
 			nodes: []*Node{
-				&Node{Key: "a", Nodes: []*Node{&Node{Key: "b", Value: "v1"}, &Node{Key: "c", Nodes: []*Node{&Node{Key: "d", Value: "v2"}, &Node{Key: "e", Value: "v3"}}}}},
-				&Node{Key: "f", Nodes: []*Node{&Node{Key: "g", Value: "v4"}}},
-				&Node{Key: "h", Nodes: []*Node{&Node{Key: "i", Nodes: []*Node{&Node{Key: "j", Value: "v5"}}}}},
+				&Node{Key: "a", Nodes: []*Node{
+					&Node{Key: "b", Value: val("v1")},
+					&Node{Key: "c", Nodes: []*Node{
+						&Node{Key: "d", Value: val("v2")},
+						&Node{Key: "e", Value: val("v3")},
+					}},
+				}},
+				&Node{Key: "f", Nodes: []*Node{
+					&Node{Key: "g", Value: val("v4")}}},
+				&Node{Key: "h", Nodes: []*Node{
+					&Node{Key: "i", Nodes: []*Node{
+						&Node{Key: "j", Value: val("v5")},
+					}},
+				}},
 			},
 			want: `{"root":{"a":{"b":"v1","c":{"d":"v2","e":"v3"}},"f":{"g":"v4"},"h":{"i":{"j":"v5"}}}}`,
 		},

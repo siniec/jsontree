@@ -1,8 +1,13 @@
 package jsontree
 
+type Value interface {
+	Serialize() ([]byte, error)
+	Deserialize([]byte) error
+}
+
 type Node struct {
 	Key   string
-	Value string
+	Value Value
 	Nodes []*Node
 }
 

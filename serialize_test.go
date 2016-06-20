@@ -8,21 +8,22 @@ import (
 )
 
 func TestSerializeNode(t *testing.T) {
+	val := func(s string) *TestValue { return &TestValue{s} }
 	node := &Node{
 		Key: "data",
 		Nodes: []*Node{
 			&Node{
 				Key: "1",
 				Nodes: []*Node{
-					&Node{Key: "a", Value: "v1"},
-					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: "v2"}}},
+					&Node{Key: "a", Value: val("v1")},
+					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: val("v2")}}},
 				},
 			},
 			&Node{
 				Key: "2",
 				Nodes: []*Node{
-					&Node{Key: "a", Value: "v3"},
-					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: "v4"}}},
+					&Node{Key: "a", Value: val("v3")},
+					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: val("v4")}}},
 				},
 			},
 		},
@@ -72,7 +73,7 @@ func getTestNode(width, depth int) *Node {
 			Key: fmt.Sprintf("%d_%d", depth, i),
 		}
 		if depth == 0 {
-			node.Value = "NodeVal"
+			node.Value = &TestValue{"NodeVal"}
 		} else {
 			node.Nodes = make([]*Node, width)
 			for i := 0; i < width; i++ {
@@ -98,3 +99,20 @@ func BenchmarkNodeSerialization2(b *testing.B) { benchmarkNodeSerialization(2, b
 func BenchmarkNodeSerialization3(b *testing.B) { benchmarkNodeSerialization(3, b) }
 func BenchmarkNodeSerialization4(b *testing.B) { benchmarkNodeSerialization(4, b) }
 func BenchmarkNodeSerialization5(b *testing.B) { benchmarkNodeSerialization(5, b) }
+
+// =========== Utility =============
+
+type TestValue struct {
+	str string
+}
+
+func (v *TestValue) Serialize() ([]byte, error) {
+	return []byte(v.str), nil
+}
+
+func (v *TestValue) Deserialize(b []byte) error {
+	v.str = string(b)
+	return nil
+}
+
+func getTestVal() Value { return new(TestValue) }

@@ -17,8 +17,16 @@ func serializeNode(node *Node, w io.Writer, wrapped bool) error {
 	if _, err := w.Write([]byte(`"` + node.Key + `":`)); err != nil {
 		return err
 	}
-	if node.Value != "" {
-		if _, err := w.Write([]byte(`"` + node.Value + `"`)); err != nil {
+	if node.Value != nil {
+		if _, err := w.Write([]byte{'"'}); err != nil {
+			return err
+		}
+		if b, err := node.Value.Serialize(); err != nil {
+			return err
+		} else if _, err = w.Write(b); err != nil {
+			return err
+		}
+		if _, err := w.Write([]byte{'"'}); err != nil {
 			return err
 		}
 	} else {
