@@ -55,24 +55,12 @@ func TestNodeDeserialization(t *testing.T) {
 		err  string
 	}{
 		{
+			// Top level is leaf
 			in:   `{"a":"b"}`,
 			want: &Node{Key: "a", Value: "b"},
 		},
 		{
-			in:  `{"a":"b"},`,
-			err: "invalid character ','  looking for beginning of value", // original encoding/json package error
-		},
-		{
-			in:  `{"a":"b","c":"d"}`,
-			err: "Invalid json. Expected 1 root note. got 2",
-		},
-		{
-			in: `{"root":{"a":"b"}}`,
-			want: &Node{Key: "root", Nodes: []*Node{
-				&Node{Key: "a", Value: "b"},
-			}},
-		},
-		{
+			// Sibling leaf nodes
 			in: `{"root":{"a":"b","c":"d"}}`,
 			want: &Node{Key: "root", Nodes: []*Node{
 				&Node{Key: "a", Value: "b"},
@@ -80,12 +68,61 @@ func TestNodeDeserialization(t *testing.T) {
 			}},
 		},
 		{
-			in:   `{"a}":{"\"b":"{v1"}}`,
-			want: &Node{Key: "a}", Nodes: []*Node{&Node{Key: `"b`, Value: "{v1"}}},
+			// Sibling non-leaf nodes
+			in: `{"root":{"a":{"a1":"v1"},"b":{"b1":"v2"}}}`,
+			want: &Node{Key: "root", Nodes: []*Node{
+				&Node{Key: "a", Nodes: []*Node{
+					&Node{Key: "a1", Value: "v1"},
+				}},
+				&Node{Key: "b", Nodes: []*Node{
+					&Node{Key: "b1", Value: "v2"},
+				}},
+			}},
 		},
 		{
-			in:   `{"a":{"b":"v1","c":{"d":"v2","e":"v3"}}}`,
-			want: &Node{Key: "a", Nodes: []*Node{&Node{Key: "b", Value: "v1"}, &Node{Key: "c", Nodes: []*Node{&Node{Key: "d", Value: "v2"}, &Node{Key: "e", Value: "v3"}}}}},
+			// Leaf nodes on different levels
+			in: `{"root":{"a":"v1","b":{"b1":{"b11":"v3"},"b2":"v2"}}}`,
+			want: &Node{Key: "root", Nodes: []*Node{
+				&Node{Key: "a", Value: "v1"},
+				&Node{Key: "b", Nodes: []*Node{
+					&Node{Key: "b1", Nodes: []*Node{
+						&Node{Key: "b11", Value: "v3"},
+					}},
+					&Node{Key: "b2", Value: "v2"},
+				}},
+			}},
+		},
+		{
+			// Nodes are ordered as they are ordered in the input string
+			in: `{"root":{"b":"3","c":"1","a":"2"}}`,
+			want: &Node{Key: "root", Nodes: []*Node{
+				&Node{Key: "b", Value: "3"},
+				&Node{Key: "c", Value: "1"},
+				&Node{Key: "a", Value: "2"},
+			}},
+		},
+		// Handle weird but valid input
+		{
+			in: `{"ro\"ot":{"{a}":"\"hello\"","b}":"\\backslash\nnewline"}}`,
+			want: &Node{Key: `ro\"ot`, Nodes: []*Node{
+				&Node{Key: `{a}`, Value: `\"hello\"`},
+				&Node{Key: `b}`, Value: `\\backslash\nnewline`},
+			}},
+		},
+		// Handling invalid input
+		// -- JSON syntax error
+		{
+			in:  `{"a":"b"},`,
+			err: "expected end of input. Got ','",
+		},
+		{
+			in:  `{"a":"b"`,
+			err: "reader returned io.EOF before expected",
+		},
+		// -- Semantic error
+		{
+			in:  `{"a":"b","c":"d"}`,
+			err: "invalid json. Expected 1 root node",
 		},
 	}
 	for _, test := range tests {
@@ -100,18 +137,21 @@ func TestNodeDeserialization(t *testing.T) {
 				name = fmt.Sprintf("Deserialize(%s)", test.in)
 				err = node.Deserialize([]byte(test.in))
 			}
-			if err != nil {
-				if test.err == "" {
-					t.Errorf(name+": Unexpected error %v", err)
-				} else {
-					if test.err != err.Error() {
-						t.Errorf(name+": Wrong error.\nWant %v\nGot  %v", test.err, err)
-					}
+
+			if test.err != "" {
+				want := fmt.Errorf(test.err)
+				if !errEqual(want, err) {
+					t.Errorf("%s\nWrong error.\nWant %v\nGot  %v", name, want, err)
 				}
+				continue
 			} else {
-				if !nodeEqual(node, test.want) {
-					t.Errorf(name+": Node was not as expected\nWant %v\nGot  %v", nodeString(test.want), nodeString(node))
+				if err != nil {
+					t.Errorf("%s\nUnexpected error %v", name, err)
+					continue
 				}
+			}
+			if !nodeEqual(node, test.want) {
+				t.Errorf("%s: Node was not as expected\nWant %v\nGot  %v", name, nodeString(test.want), nodeString(node))
 			}
 		}
 	}
@@ -119,8 +159,28 @@ func TestNodeDeserialization(t *testing.T) {
 
 // ========== Benchmarking ==========
 
-var bench struct {
-	result interface{} // used to prevent compiler optimization during benchmarks
+var benchmarks = struct {
+	serialization struct {
+		nodes []*Node
+	}
+	deserialization struct {
+		ins [][]byte
+	}
+}{}
+
+func init() {
+	const n = 6
+	benchmarks.serialization.nodes = make([]*Node, n)
+	benchmarks.deserialization.ins = make([][]byte, n)
+	for i := 0; i < n; i++ {
+		node := getTestNode(i, i)
+		benchmarks.serialization.nodes[i] = node
+		if b, err := node.Serialize(); err != nil {
+			panic(err)
+		} else {
+			benchmarks.deserialization.ins[i] = b
+		}
+	}
 }
 
 func getTestNode(width, depth int) *Node {
@@ -143,22 +203,21 @@ func getTestNode(width, depth int) *Node {
 }
 
 func benchmarkNodeSerialization(n int, b *testing.B) {
-	node := getTestNode(n, n)
+	node := benchmarks.serialization.nodes[n-1]
 	for i := 0; i < b.N; i++ {
-		bench.result = node.SerializeTo(ioutil.Discard)
+		if err := node.SerializeTo(ioutil.Discard); err != nil {
+			b.Fatalf("Error: %v", err)
+		}
 	}
 }
 
 func benchmarkNodeDeserialization(n int, b *testing.B) {
-	node := getTestNode(n, n)
-	bs, err := node.Serialize()
-	if err != nil {
-		b.Fatalf("Error serializing node: %v", err)
-	}
 	for i := 0; i < b.N; i++ {
-		r := bytes.NewBuffer(bs)
+		r := bytes.NewBuffer(benchmarks.deserialization.ins[n-1])
 		node := new(Node)
-		bench.result = node.DeserializeFrom(r)
+		if err := node.DeserializeFrom(r); err != nil {
+			b.Fatalf("Error: %v", err)
+		}
 	}
 }
 
@@ -173,6 +232,7 @@ func BenchmarkNodeDeserialization2(b *testing.B) { benchmarkNodeDeserialization(
 func BenchmarkNodeDeserialization3(b *testing.B) { benchmarkNodeDeserialization(3, b) }
 func BenchmarkNodeDeserialization4(b *testing.B) { benchmarkNodeDeserialization(4, b) }
 func BenchmarkNodeDeserialization5(b *testing.B) { benchmarkNodeDeserialization(5, b) }
+func BenchmarkNodeDeserialization6(b *testing.B) { benchmarkNodeDeserialization(6, b) }
 
 // ========== Utility ==========
 
@@ -209,23 +269,8 @@ func nodeEqual(want, got *Node) bool {
 	if gn, wn := got.Nodes, want.Nodes; len(gn) != len(wn) || (gn == nil && wn != nil) || (gn != nil && wn == nil) {
 		return false
 	}
-	// for i := range want.Nodes {
-	// 	if !nodeEqual(want.Nodes[i], got.Nodes[i]) {
-	// 		return false
-	// 	}
-	// }
-	for _, wantChild := range want.Nodes {
-		found := false
-		for _, gotChild := range got.Nodes {
-			if gotChild.Key == wantChild.Key {
-				if !nodeEqual(wantChild, gotChild) {
-					return false
-				}
-				found = true
-				break
-			}
-		}
-		if !found {
+	for i := range want.Nodes {
+		if !nodeEqual(want.Nodes[i], got.Nodes[i]) {
 			return false
 		}
 	}
