@@ -163,11 +163,15 @@ func nodeEqual(want, got *Node) bool {
 	if got.Value != nil && !got.Value.(*testValue).Equal(want.Value.(*testValue)) {
 		return false
 	}
-	if gn, wn := got.Nodes, want.Nodes; len(gn) != len(wn) || (gn == nil && wn != nil) || (gn != nil && wn == nil) {
+	return nodesEqual(want.Nodes, got.Nodes)
+}
+
+func nodesEqual(want, got []*Node) bool {
+	if len(got) != len(want) || (got == nil && want != nil) || (got != nil && want == nil) {
 		return false
 	}
-	for i := range want.Nodes {
-		if !nodeEqual(want.Nodes[i], got.Nodes[i]) {
+	for i := range want {
+		if !nodeEqual(want[i], got[i]) {
 			return false
 		}
 	}
