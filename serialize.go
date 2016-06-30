@@ -18,33 +18,11 @@ func serializeNode(node *Node, w io.Writer, wrapped bool) error {
 		return err
 	}
 	if node.Value != nil {
-		if _, err := w.Write([]byte{'"'}); err != nil {
-			return err
-		}
-		if b, err := node.Value.Serialize(); err != nil {
-			return err
-		} else if _, err = w.Write(b); err != nil {
-			return err
-		}
-		if _, err := w.Write([]byte{'"'}); err != nil {
+		if err := serializeValue(node.Value, w); err != nil {
 			return err
 		}
 	} else {
-		if _, err := w.Write([]byte{'{'}); err != nil {
-			return err
-		}
-		n := len(node.Nodes)
-		for i, child := range node.Nodes {
-			if err := serializeNode(child, w, false); err != nil {
-				return err
-			}
-			if hasMoreChildren := i < n-1; hasMoreChildren {
-				if _, err := w.Write([]byte{','}); err != nil {
-					return err
-				}
-			}
-		}
-		if _, err := w.Write([]byte{'}'}); err != nil {
+		if err := serializeNodes(node.Nodes, w); err != nil {
 			return err
 		}
 	}
@@ -52,6 +30,42 @@ func serializeNode(node *Node, w io.Writer, wrapped bool) error {
 		if _, err := w.Write([]byte{'}'}); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func serializeValue(value Value, w io.Writer) error {
+	if _, err := w.Write([]byte{'"'}); err != nil {
+		return err
+	}
+	if b, err := value.Serialize(); err != nil {
+		return err
+	} else if _, err = w.Write(b); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte{'"'}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func serializeNodes(nodes []*Node, w io.Writer) error {
+	if _, err := w.Write([]byte{'{'}); err != nil {
+		return err
+	}
+	n := len(nodes)
+	for i, child := range nodes {
+		if err := serializeNode(child, w, false); err != nil {
+			return err
+		}
+		if hasMoreChildren := i < n-1; hasMoreChildren {
+			if _, err := w.Write([]byte{','}); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := w.Write([]byte{'}'}); err != nil {
+		return err
 	}
 	return nil
 }
