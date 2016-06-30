@@ -22,19 +22,19 @@ func TestDeserializeNode(t *testing.T) {
 			// Sibling leaf nodes
 			in: `{"root":{"a":"b","c":"d"}}`,
 			want: &Node{Key: "root", Nodes: []*Node{
-				&Node{Key: "a", Value: val("b")},
-				&Node{Key: "c", Value: val("d")},
+				{Key: "a", Value: val("b")},
+				{Key: "c", Value: val("d")},
 			}},
 		},
 		{
 			// Sibling non-leaf nodes
 			in: `{"root":{"a":{"a1":"v1"},"b":{"b1":"v2"}}}`,
 			want: &Node{Key: "root", Nodes: []*Node{
-				&Node{Key: "a", Nodes: []*Node{
-					&Node{Key: "a1", Value: val("v1")},
+				{Key: "a", Nodes: []*Node{
+					{Key: "a1", Value: val("v1")},
 				}},
-				&Node{Key: "b", Nodes: []*Node{
-					&Node{Key: "b1", Value: val("v2")},
+				{Key: "b", Nodes: []*Node{
+					{Key: "b1", Value: val("v2")},
 				}},
 			}},
 		},
@@ -42,12 +42,12 @@ func TestDeserializeNode(t *testing.T) {
 			// Leaf nodes on different levels
 			in: `{"root":{"a":"v1","b":{"b1":{"b11":"v3"},"b2":"v2"}}}`,
 			want: &Node{Key: "root", Nodes: []*Node{
-				&Node{Key: "a", Value: val("v1")},
-				&Node{Key: "b", Nodes: []*Node{
-					&Node{Key: "b1", Nodes: []*Node{
-						&Node{Key: "b11", Value: val("v3")},
+				{Key: "a", Value: val("v1")},
+				{Key: "b", Nodes: []*Node{
+					{Key: "b1", Nodes: []*Node{
+						{Key: "b11", Value: val("v3")},
 					}},
-					&Node{Key: "b2", Value: val("v2")},
+					{Key: "b2", Value: val("v2")},
 				}},
 			}},
 		},
@@ -55,17 +55,17 @@ func TestDeserializeNode(t *testing.T) {
 			// Nodes are ordered non-alphabetically
 			in: `{"root":{"b":"3","c":"1","a":"2"}}`,
 			want: &Node{Key: "root", Nodes: []*Node{
-				&Node{Key: "b", Value: val("3")},
-				&Node{Key: "c", Value: val("1")},
-				&Node{Key: "a", Value: val("2")},
+				{Key: "b", Value: val("3")},
+				{Key: "c", Value: val("1")},
+				{Key: "a", Value: val("2")},
 			}},
 		},
 		// Weird but valid input
 		{
 			in: `{"ro\"ot":{"{a}":"\"hello\"","b}":"\\backslash\nnewline"}}`,
 			want: &Node{Key: `ro\"ot`, Nodes: []*Node{
-				&Node{Key: `{a}`, Value: val(`\"hello\"`)},
-				&Node{Key: `b}`, Value: val(`\\backslash\nnewline`)},
+				{Key: `{a}`, Value: val(`\"hello\"`)},
+				{Key: `b}`, Value: val(`\\backslash\nnewline`)},
 			}},
 		},
 		// Handling invalid input

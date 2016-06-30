@@ -11,18 +11,18 @@ func TestSerializeNode(t *testing.T) {
 	node := &Node{
 		Key: "data",
 		Nodes: []*Node{
-			&Node{
+			{
 				Key: "1",
 				Nodes: []*Node{
-					&Node{Key: "a", Value: val("v1")},
-					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: val("v2")}}},
+					{Key: "a", Value: val("v1")},
+					{Key: "b", Nodes: []*Node{{Key: "i", Value: val("v2")}}},
 				},
 			},
-			&Node{
+			{
 				Key: "2",
 				Nodes: []*Node{
-					&Node{Key: "a", Value: val("v3")},
-					&Node{Key: "b", Nodes: []*Node{&Node{Key: "i", Value: val("v4")}}},
+					{Key: "a", Value: val("v3")},
+					{Key: "b", Nodes: []*Node{{Key: "i", Value: val("v4")}}},
 				},
 			},
 		},

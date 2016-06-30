@@ -95,18 +95,18 @@ func TestWriter(t *testing.T) {
 		{
 			name: "Normal nodes slice without parent",
 			nodes: []*Node{
-				&Node{Key: "a", Nodes: []*Node{
-					&Node{Key: "b", Value: val("v1")},
-					&Node{Key: "c", Nodes: []*Node{
-						&Node{Key: "d", Value: val("v2")},
-						&Node{Key: "e", Value: val("v3")},
+				{Key: "a", Nodes: []*Node{
+					{Key: "b", Value: val("v1")},
+					{Key: "c", Nodes: []*Node{
+						{Key: "d", Value: val("v2")},
+						{Key: "e", Value: val("v3")},
 					}},
 				}},
-				&Node{Key: "f", Nodes: []*Node{
-					&Node{Key: "g", Value: val("v4")}}},
-				&Node{Key: "h", Nodes: []*Node{
-					&Node{Key: "i", Nodes: []*Node{
-						&Node{Key: "j", Value: val("v5")},
+				{Key: "f", Nodes: []*Node{
+					{Key: "g", Value: val("v4")}}},
+				{Key: "h", Nodes: []*Node{
+					{Key: "i", Nodes: []*Node{
+						{Key: "j", Value: val("v5")},
 					}},
 				}},
 			},
@@ -116,18 +116,18 @@ func TestWriter(t *testing.T) {
 			name:   "Normal nodes slice with parent",
 			parent: "root",
 			nodes: []*Node{
-				&Node{Key: "a", Nodes: []*Node{
-					&Node{Key: "b", Value: val("v1")},
-					&Node{Key: "c", Nodes: []*Node{
-						&Node{Key: "d", Value: val("v2")},
-						&Node{Key: "e", Value: val("v3")},
+				{Key: "a", Nodes: []*Node{
+					{Key: "b", Value: val("v1")},
+					{Key: "c", Nodes: []*Node{
+						{Key: "d", Value: val("v2")},
+						{Key: "e", Value: val("v3")},
 					}},
 				}},
-				&Node{Key: "f", Nodes: []*Node{
-					&Node{Key: "g", Value: val("v4")}}},
-				&Node{Key: "h", Nodes: []*Node{
-					&Node{Key: "i", Nodes: []*Node{
-						&Node{Key: "j", Value: val("v5")},
+				{Key: "f", Nodes: []*Node{
+					{Key: "g", Value: val("v4")}}},
+				{Key: "h", Nodes: []*Node{
+					{Key: "i", Nodes: []*Node{
+						{Key: "j", Value: val("v5")},
 					}},
 				}},
 			},
