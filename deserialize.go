@@ -161,7 +161,7 @@ func (p *parser) readQuotedKey() (readFn, error) {
 	if _, err := p.readByte(':', nil); err != nil {
 		return nil, err
 	}
-	// And following the column is eiter a sub node or a value
+	// And following the column is either a sub node or a value
 	if bs, err := p.r.Peek(1); err != nil {
 		return nil, err
 	} else {
