@@ -8,7 +8,6 @@ import (
 )
 
 func TestDeserializeNode(t *testing.T) {
-	val := func(s string) *TestValue { return &TestValue{s} }
 	tests := []struct {
 		in   string
 		want *Node
@@ -87,7 +86,8 @@ func TestDeserializeNode(t *testing.T) {
 	}
 	for _, test := range tests {
 		r := bytes.NewReader([]byte(test.in))
-		node, err := DeserializeNode(r, getTestVal)
+		getValFn := func() Value { return new(testValue) }
+		node, err := DeserializeNode(r, getValFn)
 		if test.err != "" {
 			want := fmt.Errorf(test.err)
 			if !errEqual(want, err) {
@@ -111,7 +111,8 @@ func TestDeserializeNode(t *testing.T) {
 func benchmarkNodeDeserialization(n int, b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		r := bytes.NewBuffer(benchmarks.deserialization.ins[n-1])
-		if _, err := DeserializeNode(r, getTestVal); err != nil {
+		getValFn := func() Value { return new(testValue) }
+		if _, err := DeserializeNode(r, getValFn); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
 	}
@@ -159,7 +160,7 @@ func nodeEqual(want, got *Node) bool {
 	if (got.Value == nil && want.Value != nil) || (got.Value != nil && want.Value == nil) {
 		return false
 	}
-	if got.Value != nil && got.Value.(*TestValue).str != want.Value.(*TestValue).str {
+	if got.Value != nil && !got.Value.(*testValue).Equal(want.Value.(*testValue)) {
 		return false
 	}
 	if gn, wn := got.Nodes, want.Nodes; len(gn) != len(wn) || (gn == nil && wn != nil) || (gn != nil && wn == nil) {

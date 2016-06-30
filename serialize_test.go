@@ -8,7 +8,6 @@ import (
 )
 
 func TestSerializeNode(t *testing.T) {
-	val := func(s string) *TestValue { return &TestValue{s} }
 	node := &Node{
 		Key: "data",
 		Nodes: []*Node{
@@ -73,7 +72,7 @@ func getTestNode(width, depth int) *Node {
 			Key: fmt.Sprintf("%d_%d", depth, i),
 		}
 		if depth == 0 {
-			node.Value = &TestValue{"NodeVal"}
+			node.Value = val("NodeVal")
 		} else {
 			node.Nodes = make([]*Node, width)
 			for i := 0; i < width; i++ {
@@ -102,17 +101,22 @@ func BenchmarkNodeSerialization5(b *testing.B) { benchmarkNodeSerialization(5, b
 
 // =========== Utility =============
 
-type TestValue struct {
-	str string
+type testValue []byte
+
+func (v *testValue) Serialize() ([]byte, error) {
+	return *v, nil
 }
 
-func (v *TestValue) Serialize() ([]byte, error) {
-	return []byte(v.str), nil
-}
-
-func (v *TestValue) Deserialize(b []byte) error {
-	v.str = string(b)
+func (v *testValue) Deserialize(b []byte) error {
+	*v = b
 	return nil
 }
 
-func getTestVal() Value { return new(TestValue) }
+func (v *testValue) Equal(other *testValue) bool {
+	return bytes.Equal(*v, *other)
+}
+
+func val(s string) *testValue {
+	v := testValue(s)
+	return &v
+}

@@ -26,7 +26,7 @@ func TestWriterWriteParent(t *testing.T) {
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		node := &Node{Key: "k", Value: &TestValue{"v"}}
+		node := &Node{Key: "k", Value: val("v")}
 		if err := w.WriteNode(node); err != nil {
 			t.Fatalf("WriteNode() return error: %v", err)
 		}
@@ -64,7 +64,7 @@ func TestWriterWriteNode(t *testing.T) {
 			t.Fatalf("Close() return error: %v", err)
 		}
 		l := buf.Len()
-		node := &Node{Key: "k", Value: &TestValue{"v"}}
+		node := &Node{Key: "k", Value: val("v")}
 		want := fmt.Errorf("the writer is closed")
 		if err := w.WriteNode(node); !errEqual(want, err) {
 			t.Errorf("Calling WriteNode() after calling Close() return wrong error.\nWant %v\nGot  %v", want, err)
@@ -75,7 +75,6 @@ func TestWriterWriteNode(t *testing.T) {
 }
 
 func TestWriter(t *testing.T) {
-	val := func(s string) *TestValue { return &TestValue{s} }
 	tests := []struct {
 		name   string
 		parent string
