@@ -1,10 +1,36 @@
 package jsontree
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"testing"
 )
+
+func TestNewWriter(t *testing.T) {
+	// If w implements io.Writer and io.ByteWriter, use it directly
+	{
+		var buf bytes.Buffer
+		w := NewWriter(&buf)
+		if w.w != &buf {
+			t.Errorf("NewWriter(bytes.Buffer) set wrong writer")
+		}
+	}
+	// If w does not implement io.Writer or io.ByteWriter, wrap it in a bufio.Writer
+	{
+		mw := new(memWriter)
+		w := NewWriter(mw)
+		if bw, ok := w.w.(*bufio.Writer); !ok {
+			t.Errorf("NewWriter() did not set internal writer to bufio.Writer")
+		} else if err := bw.WriteByte('?'); err != nil {
+			t.Errorf("bw.WriteByte() error: %v", err)
+		} else if err = bw.Flush(); err != nil {
+			t.Fatalf("bw.Flush() error: %v", err)
+		} else if string(mw.bs) != "?" {
+			t.Errorf("NewWriter() with bufio.Writer did not write to correct underlying writer")
+		}
+	}
+}
 
 func TestWriterWriteParent(t *testing.T) {
 	// Calling WriteParent twice returns error
@@ -261,6 +287,45 @@ func TestWriter(t *testing.T) {
 			}
 		}
 	}
+}
+
+// ========== Benchmarking ==========
+
+func benchmarkWriter(n int, b *testing.B) {
+	node := getTestNode(n-1, n-1)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := NewWriter(discardWriter{})
+		if err := w.WriteParent(node.Key); err != nil {
+			b.Fatalf("WriteParent() returned error: %v", err)
+		}
+		for _, node := range node.Nodes {
+			if err := w.WriteNode(node); err != nil {
+				b.Fatalf("WriteNode() returned error: %v", err)
+			}
+		}
+		if err := w.Close(); err != nil {
+			b.Fatalf("Close() returned error: %v", err)
+		}
+	}
+}
+
+func BenchmarkWriter1(b *testing.B) { benchmarkWriter(1, b) }
+func BenchmarkWriter2(b *testing.B) { benchmarkWriter(2, b) }
+func BenchmarkWriter3(b *testing.B) { benchmarkWriter(3, b) }
+func BenchmarkWriter4(b *testing.B) { benchmarkWriter(4, b) }
+func BenchmarkWriter5(b *testing.B) { benchmarkWriter(5, b) }
+
+// ========== Utility ==========
+
+// memWriter writes to an internal buffer
+type memWriter struct {
+	bs []byte
+}
+
+func (mw *memWriter) Write(p []byte) (int, error) {
+	mw.bs = append(mw.bs, p...)
+	return len(p), nil
 }
 
 func findLeafNode(nodes []*Node) *Node {

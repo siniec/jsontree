@@ -1,16 +1,28 @@
 package jsontree
 
 import (
+	"bufio"
 	"io"
 )
 
-func SerializeNode(node *Node, w io.Writer) error {
-	return serializeNode(node, w, true)
+type ByteWriter interface {
+	io.Writer
+	io.ByteWriter
 }
 
-func serializeNode(node *Node, w io.Writer, wrapped bool) error {
+func SerializeNode(node *Node, w io.Writer) error {
+	var bw ByteWriter
+	if _bw, ok := w.(ByteWriter); ok {
+		bw = _bw
+	} else {
+		bw = bufio.NewWriter(w)
+	}
+	return serializeNode(node, bw, true)
+}
+
+func serializeNode(node *Node, w ByteWriter, wrapped bool) error {
 	if wrapped {
-		if _, err := w.Write([]byte{'{'}); err != nil {
+		if err := w.WriteByte('{'); err != nil {
 			return err
 		}
 	}
@@ -27,15 +39,15 @@ func serializeNode(node *Node, w io.Writer, wrapped bool) error {
 		}
 	}
 	if wrapped {
-		if _, err := w.Write([]byte{'}'}); err != nil {
+		if err := w.WriteByte('}'); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func serializeValue(value Value, w io.Writer) error {
-	if _, err := w.Write([]byte{'"'}); err != nil {
+func serializeValue(value Value, w ByteWriter) error {
+	if err := w.WriteByte('"'); err != nil {
 		return err
 	}
 	if b, err := value.Serialize(); err != nil {
@@ -43,14 +55,14 @@ func serializeValue(value Value, w io.Writer) error {
 	} else if _, err = w.Write(b); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte{'"'}); err != nil {
+	if err := w.WriteByte('"'); err != nil {
 		return err
 	}
 	return nil
 }
 
-func serializeNodes(nodes []*Node, w io.Writer) error {
-	if _, err := w.Write([]byte{'{'}); err != nil {
+func serializeNodes(nodes []*Node, w ByteWriter) error {
+	if err := w.WriteByte('{'); err != nil {
 		return err
 	}
 	n := len(nodes)
@@ -59,12 +71,12 @@ func serializeNodes(nodes []*Node, w io.Writer) error {
 			return err
 		}
 		if hasMoreChildren := i < n-1; hasMoreChildren {
-			if _, err := w.Write([]byte{','}); err != nil {
+			if err := w.WriteByte(','); err != nil {
 				return err
 			}
 		}
 	}
-	if _, err := w.Write([]byte{'}'}); err != nil {
+	if err := w.WriteByte('}'); err != nil {
 		return err
 	}
 	return nil

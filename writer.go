@@ -1,12 +1,13 @@
 package jsontree
 
 import (
+	"bufio"
 	"errors"
 	"io"
 )
 
 type Writer struct {
-	w                io.Writer
+	w                ByteWriter
 	key              string
 	hasWrittenNode   bool
 	hasWrittenParent bool
@@ -14,7 +15,13 @@ type Writer struct {
 }
 
 func NewWriter(w io.Writer) *Writer {
-	return &Writer{w: w}
+	writer := new(Writer)
+	if bw, ok := w.(ByteWriter); ok {
+		writer.w = bw
+	} else {
+		writer.w = bufio.NewWriter(w)
+	}
+	return writer
 }
 
 func (writer *Writer) WriteParent(key string) error {
@@ -40,12 +47,12 @@ func (writer *Writer) WriteNode(node *Node) error {
 	}
 	w := writer.w
 	if !writer.hasWrittenNode {
-		if _, err := w.Write([]byte{'{'}); err != nil {
+		if err := w.WriteByte('{'); err != nil {
 			return err
 		}
 		writer.hasWrittenNode = true
 	} else {
-		if _, err := w.Write([]byte{','}); err != nil {
+		if err := w.WriteByte(','); err != nil {
 			return err
 		}
 	}
@@ -58,15 +65,15 @@ func (writer *Writer) Close() error {
 	}
 	w := writer.w
 	if !writer.hasWrittenNode {
-		if _, err := w.Write([]byte{'{'}); err != nil {
+		if err := w.WriteByte('{'); err != nil {
 			return err
 		}
 	}
-	if _, err := w.Write([]byte{'}'}); err != nil {
+	if err := w.WriteByte('}'); err != nil {
 		return err
 	}
 	if writer.hasWrittenParent {
-		if _, err := w.Write([]byte{'}'}); err != nil {
+		if err := w.WriteByte('}'); err != nil {
 			return err
 		}
 	}

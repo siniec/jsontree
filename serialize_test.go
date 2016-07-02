@@ -89,7 +89,7 @@ func benchmarkNodeSerialization(n int, b *testing.B) {
 	node := getTestNode(n-1, n-1)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := SerializeNode(node, ioutil.Discard); err != nil {
+		if err := SerializeNode(node, discardWriter{}); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
 	}
@@ -135,8 +135,8 @@ func valErr(s string, serializeErr, deserializeErr error) *testValue {
 	}
 }
 
-// errWriter writes the bytes passed to Write() until a certain number of
-// bytes has been written.
+// errWriter acts like it writes the bytes passed to Write() and WriteByte() successfully
+// until a certain number of bytes has been written.
 type errWriter struct {
 	errIndex int   // number of bytes to write successfully, without returning error
 	err      error // error to return
@@ -149,4 +149,21 @@ func (w *errWriter) Write(b []byte) (int, error) {
 		return 0, w.err
 	}
 	return len(b), nil
+}
+
+func (w *errWriter) WriteByte(b byte) error {
+	_, err := w.Write([]byte{b})
+	return err
+}
+
+// discardWriter implements io.Writer, io.ByteWriter and discards anything written.
+// It is used to prevent any overhead during benchmarking.
+type discardWriter struct{}
+
+func (discardWriter) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (discardWriter) WriteByte(b byte) error {
+	return nil
 }
