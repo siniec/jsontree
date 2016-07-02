@@ -2,7 +2,7 @@ package jsontree
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
