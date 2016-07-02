@@ -199,9 +199,13 @@ func benchmarkNodeDeserialization(n int, b *testing.B) {
 		panic(err)
 	}
 	getValFn := func() Value { return new(testValue) }
+	r := new(bytes.Buffer)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r := bytes.NewBuffer(buf.Bytes())
+		r.Reset()
+		if _, err := r.Write(buf.Bytes()); err != nil {
+			b.Fatalf("r.Write() error: %v", err)
+		}
 		if _, err := DeserializeNode(r, getValFn); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
