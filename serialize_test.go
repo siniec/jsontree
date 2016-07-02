@@ -66,31 +66,6 @@ func TestSerializeNode(t *testing.T) {
 
 // ========== Benchmarking ==========
 
-var benchmarks = struct {
-	serialization struct {
-		nodes []*Node
-	}
-	deserialization struct {
-		ins [][]byte
-	}
-}{}
-
-func init() {
-	const n = 5
-	benchmarks.serialization.nodes = make([]*Node, n)
-	benchmarks.deserialization.ins = make([][]byte, n)
-	for i := 0; i < n; i++ {
-		node := getTestNode(i, i)
-		benchmarks.serialization.nodes[i] = node
-		var buf bytes.Buffer
-		if err := SerializeNode(node, &buf); err != nil {
-			panic(err)
-		} else {
-			benchmarks.deserialization.ins[i] = buf.Bytes()
-		}
-	}
-}
-
 func getTestNode(width, depth int) *Node {
 	var fn func(i, width, depth int) *Node
 	fn = func(i, width, depth int) *Node {
@@ -111,7 +86,8 @@ func getTestNode(width, depth int) *Node {
 }
 
 func benchmarkNodeSerialization(n int, b *testing.B) {
-	node := benchmarks.serialization.nodes[n-1]
+	node := getTestNode(n-1, n-1)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := SerializeNode(node, ioutil.Discard); err != nil {
 			b.Fatalf("Error: %v", err)

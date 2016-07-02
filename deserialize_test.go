@@ -193,9 +193,15 @@ func TestDeserializeNode(t *testing.T) {
 // ========== Benchmarking ==========
 
 func benchmarkNodeDeserialization(n int, b *testing.B) {
+	node := getTestNode(n-1, n-1)
+	var buf bytes.Buffer
+	if err := SerializeNode(node, &buf); err != nil {
+		panic(err)
+	}
+	getValFn := func() Value { return new(testValue) }
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r := bytes.NewBuffer(benchmarks.deserialization.ins[n-1])
-		getValFn := func() Value { return new(testValue) }
+		r := bytes.NewBuffer(buf.Bytes())
 		if _, err := DeserializeNode(r, getValFn); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
