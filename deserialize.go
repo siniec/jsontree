@@ -85,7 +85,7 @@ func (p *parser) Scan() bool {
 	return true
 }
 
-func (p *parser) Data() (path []string, value Value) {
+func (p *parser) Data() (path [][]byte, value Value) {
 	path = p.path
 	value = p.value
 	return path, value
@@ -175,7 +175,7 @@ func (p *parser) readQuotedKey() (readFn, error) {
 	if bs, err := p.readQuotedString(); err != nil {
 		return nil, err
 	} else {
-		p.path.Push(string(bs))
+		p.path.Push(bs)
 	}
 	// Following the key should be a column
 	if _, err := p.readByte(':', nil); err != nil {
@@ -227,9 +227,9 @@ func (p *parser) readComma() (readFn, error) {
 	return p.readByte(',', p.readQuotedKey)
 }
 
-type stack []string
+type stack [][]byte
 
-func (s *stack) Push(v string) {
+func (s *stack) Push(v []byte) {
 	*s = append(*s, v)
 }
 

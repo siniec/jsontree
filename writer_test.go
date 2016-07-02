@@ -33,16 +33,17 @@ func TestNewWriter(t *testing.T) {
 }
 
 func TestWriterWriteParent(t *testing.T) {
+	parentKey := key("parent")
 	// Calling WriteParent twice returns error
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		if err := w.WriteParent("parent"); err != nil {
+		if err := w.WriteParent(parentKey); err != nil {
 			t.Fatalf("First call to WriteParent() return error: %v", err)
 		}
 		l := buf.Len()
 		want := fmt.Errorf("WriteParent() has already been called")
-		if err := w.WriteParent("parent"); !errEqual(want, err) {
+		if err := w.WriteParent(parentKey); !errEqual(want, err) {
 			t.Errorf("Duplicate call to WriteParent() return wrong error.\nWant %v\nGot  %v", want, err)
 		} else if buf.Len() != l {
 			t.Errorf("Duplicate call to WriteParent() wrote to the writer")
@@ -52,13 +53,13 @@ func TestWriterWriteParent(t *testing.T) {
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		node := &Node{Key: "k", Value: val("v")}
+		node := &Node{Key: key("k"), Value: val("v")}
 		if err := w.WriteNode(node); err != nil {
 			t.Fatalf("WriteNode() return error: %v", err)
 		}
 		l := buf.Len()
 		want := fmt.Errorf("WriteParent() must be called before any call to WriteNode()")
-		if err := w.WriteParent("parent"); !errEqual(want, err) {
+		if err := w.WriteParent(parentKey); !errEqual(want, err) {
 			t.Errorf("Calling WriteParent() after calling WriteNode() return wrong error.\nWant %v\nGot  %v", want, err)
 		} else if buf.Len() != l {
 			t.Errorf("Calling WriteParent() after calling WriteNode() ")
@@ -73,7 +74,7 @@ func TestWriterWriteParent(t *testing.T) {
 		}
 		l := buf.Len()
 		want := fmt.Errorf("the writer is closed")
-		if err := w.WriteParent("parent"); !errEqual(want, err) {
+		if err := w.WriteParent(parentKey); !errEqual(want, err) {
 			t.Errorf("Calling WriteParent() after Close() return wrong error.\nWant %v\nGot  %v", want, err)
 		} else if buf.Len() != l {
 			t.Errorf("Calling WriteParent() after Close() wrote to the writer")
@@ -90,7 +91,7 @@ func TestWriterWriteNode(t *testing.T) {
 			t.Fatalf("Close() return error: %v", err)
 		}
 		l := buf.Len()
-		node := &Node{Key: "k", Value: val("v")}
+		node := &Node{Key: key("k"), Value: val("v")}
 		want := fmt.Errorf("the writer is closed")
 		if err := w.WriteNode(node); !errEqual(want, err) {
 			t.Errorf("Calling WriteNode() after calling Close() return wrong error.\nWant %v\nGot  %v", want, err)
@@ -168,18 +169,18 @@ func TestWriter(t *testing.T) {
 		{
 			name: "Normal nodes slice without parent",
 			nodes: []*Node{
-				{Key: "a", Nodes: []*Node{
-					{Key: "b", Value: val("v1")},
-					{Key: "c", Nodes: []*Node{
-						{Key: "d", Value: val("v2")},
-						{Key: "e", Value: val("v3")},
+				{Key: key("a"), Nodes: []*Node{
+					{Key: key("b"), Value: val("v1")},
+					{Key: key("c"), Nodes: []*Node{
+						{Key: key("d"), Value: val("v2")},
+						{Key: key("e"), Value: val("v3")},
 					}},
 				}},
-				{Key: "f", Nodes: []*Node{
-					{Key: "g", Value: val("v4")}}},
-				{Key: "h", Nodes: []*Node{
-					{Key: "i", Nodes: []*Node{
-						{Key: "j", Value: val("v5")},
+				{Key: key("f"), Nodes: []*Node{
+					{Key: key("g"), Value: val("v4")}}},
+				{Key: key("h"), Nodes: []*Node{
+					{Key: key("i"), Nodes: []*Node{
+						{Key: key("j"), Value: val("v5")},
 					}},
 				}},
 			},
@@ -189,18 +190,18 @@ func TestWriter(t *testing.T) {
 			name:   "Normal nodes slice with parent",
 			parent: "root",
 			nodes: []*Node{
-				{Key: "a", Nodes: []*Node{
-					{Key: "b", Value: val("v1")},
-					{Key: "c", Nodes: []*Node{
-						{Key: "d", Value: val("v2")},
-						{Key: "e", Value: val("v3")},
+				{Key: key("a"), Nodes: []*Node{
+					{Key: key("b"), Value: val("v1")},
+					{Key: key("c"), Nodes: []*Node{
+						{Key: key("d"), Value: val("v2")},
+						{Key: key("e"), Value: val("v3")},
 					}},
 				}},
-				{Key: "f", Nodes: []*Node{
-					{Key: "g", Value: val("v4")}}},
-				{Key: "h", Nodes: []*Node{
-					{Key: "i", Nodes: []*Node{
-						{Key: "j", Value: val("v5")},
+				{Key: key("f"), Nodes: []*Node{
+					{Key: key("g"), Value: val("v4")}}},
+				{Key: key("h"), Nodes: []*Node{
+					{Key: key("i"), Nodes: []*Node{
+						{Key: key("j"), Value: val("v5")},
 					}},
 				}},
 			},
@@ -211,7 +212,7 @@ func TestWriter(t *testing.T) {
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
 		if test.parent != "" {
-			if err := w.WriteParent(test.parent); err != nil {
+			if err := w.WriteParent(key(test.parent)); err != nil {
 				t.Fatalf("%s: WriteParent() returned error: %v", test.name, err)
 			}
 		}
@@ -229,7 +230,7 @@ func TestWriter(t *testing.T) {
 		// Writing a node using SerializeNode() and by calling Writer w with w.WriteParent(node.Key)
 		// and then w.WriteNode() for each of node's Nodes should produce the same output
 		if test.parent != "" {
-			parent := &Node{Key: test.parent, Nodes: test.nodes}
+			parent := &Node{Key: key(test.parent), Nodes: test.nodes}
 			var buf2 bytes.Buffer
 			if err := SerializeNode(parent, &buf2); err != nil {
 				t.Fatalf("%s: SerializeNode() failed: %v", test.name, err)
@@ -249,7 +250,7 @@ func TestWriter(t *testing.T) {
 			// Write until we encounter an error
 			var gotErr error
 			if test.parent != "" {
-				gotErr = w.WriteParent(test.parent)
+				gotErr = w.WriteParent(key(test.parent))
 			}
 			if gotErr == nil {
 				for _, node := range test.nodes {

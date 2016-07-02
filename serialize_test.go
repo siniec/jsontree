@@ -9,20 +9,20 @@ import (
 
 func TestSerializeNode(t *testing.T) {
 	node := &Node{
-		Key: "data",
+		Key: key("data"),
 		Nodes: []*Node{
 			{
-				Key: "1",
+				Key: key("1"),
 				Nodes: []*Node{
-					{Key: "a", Value: val("v1")},
-					{Key: "b", Nodes: []*Node{{Key: "i", Value: val("v2")}}},
+					{Key: key("a"), Value: val("v1")},
+					{Key: key("b"), Nodes: []*Node{{Key: key("i"), Value: val("v2")}}},
 				},
 			},
 			{
-				Key: "2",
+				Key: key("2"),
 				Nodes: []*Node{
-					{Key: "a", Value: val("v3")},
-					{Key: "b", Nodes: []*Node{{Key: "i", Value: val("v4")}}},
+					{Key: key("a"), Value: val("v3")},
+					{Key: key("b"), Nodes: []*Node{{Key: key("i"), Value: val("v4")}}},
 				},
 			},
 		},
@@ -70,7 +70,7 @@ func getTestNode(width, depth int) *Node {
 	var fn func(i, width, depth int) *Node
 	fn = func(i, width, depth int) *Node {
 		node := &Node{
-			Key: fmt.Sprintf("%d_%d", depth, i),
+			Key: key(fmt.Sprintf("%d_%d", depth, i)),
 		}
 		if depth == 0 {
 			node.Value = val("NodeVal")

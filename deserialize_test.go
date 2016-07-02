@@ -39,57 +39,57 @@ func TestDeserializeNode(t *testing.T) {
 		{
 			// Top level is leaf
 			in:   `{"a":"b"}`,
-			want: &Node{Key: "a", Value: val("b")},
+			want: &Node{Key: key("a"), Value: val("b")},
 		},
 		{
 			// Sibling leaf nodes
 			in: `{"root":{"a":"b","c":"d"}}`,
-			want: &Node{Key: "root", Nodes: []*Node{
-				{Key: "a", Value: val("b")},
-				{Key: "c", Value: val("d")},
+			want: &Node{Key: key("root"), Nodes: []*Node{
+				{Key: key("a"), Value: val("b")},
+				{Key: key("c"), Value: val("d")},
 			}},
 		},
 		{
 			// Sibling non-leaf nodes
 			in: `{"root":{"a":{"a1":"v1"},"b":{"b1":"v2"}}}`,
-			want: &Node{Key: "root", Nodes: []*Node{
-				{Key: "a", Nodes: []*Node{
-					{Key: "a1", Value: val("v1")},
+			want: &Node{Key: key("root"), Nodes: []*Node{
+				{Key: key("a"), Nodes: []*Node{
+					{Key: key("a1"), Value: val("v1")},
 				}},
-				{Key: "b", Nodes: []*Node{
-					{Key: "b1", Value: val("v2")},
+				{Key: key("b"), Nodes: []*Node{
+					{Key: key("b1"), Value: val("v2")},
 				}},
 			}},
 		},
 		{
 			// Leaf nodes on different levels
 			in: `{"root":{"a":"v1","b":{"b1":{"b11":"v3"},"b2":"v2"}}}`,
-			want: &Node{Key: "root", Nodes: []*Node{
-				{Key: "a", Value: val("v1")},
-				{Key: "b", Nodes: []*Node{
-					{Key: "b1", Nodes: []*Node{
-						{Key: "b11", Value: val("v3")},
+			want: &Node{Key: key("root"), Nodes: []*Node{
+				{Key: key("a"), Value: val("v1")},
+				{Key: key("b"), Nodes: []*Node{
+					{Key: key("b1"), Nodes: []*Node{
+						{Key: key("b11"), Value: val("v3")},
 					}},
-					{Key: "b2", Value: val("v2")},
+					{Key: key("b2"), Value: val("v2")},
 				}},
 			}},
 		},
 		{
 			// Nodes are ordered non-alphabetically
 			in: `{"root":{"b":"3","c":"1","a":"2"}}`,
-			want: &Node{Key: "root", Nodes: []*Node{
-				{Key: "b", Value: val("3")},
-				{Key: "c", Value: val("1")},
-				{Key: "a", Value: val("2")},
+			want: &Node{Key: key("root"), Nodes: []*Node{
+				{Key: key("b"), Value: val("3")},
+				{Key: key("c"), Value: val("1")},
+				{Key: key("a"), Value: val("2")},
 			}},
 		},
 		// Weird but valid input
 		{
 			in:    `{"ro\"ot":{"{a}":"\"hello\"","b}":"\\backslash\nnewline"}}`,
 			weird: true,
-			want: &Node{Key: `ro\"ot`, Nodes: []*Node{
-				{Key: `{a}`, Value: val(`\"hello\"`)},
-				{Key: `b}`, Value: val(`\\backslash\nnewline`)},
+			want: &Node{Key: key(`ro\"ot`), Nodes: []*Node{
+				{Key: key(`{a}`), Value: val(`\"hello\"`)},
+				{Key: key(`b}`), Value: val(`\\backslash\nnewline`)},
 			}},
 		},
 		// Handling invalid input. See also section Test unexpected tokens (invalid JSON) below
@@ -248,7 +248,7 @@ func nodeEqual(want, got *Node) bool {
 	if got == nil {
 		return false
 	}
-	if got.Key != want.Key {
+	if !keyEqual(got.Key, want.Key) {
 		return false
 	}
 	if (got.Value == nil && want.Value != nil) || (got.Value != nil && want.Value == nil) {

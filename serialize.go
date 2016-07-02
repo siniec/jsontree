@@ -22,11 +22,18 @@ func SerializeNode(node *Node, w io.Writer) error {
 
 func serializeNode(node *Node, w ByteWriter, wrapped bool) error {
 	if wrapped {
-		if err := w.WriteByte('{'); err != nil {
+		if _, err := w.Write(jsonBytes[:2]); err != nil {
+			return err
+		}
+	} else {
+		if err := w.WriteByte('"'); err != nil {
 			return err
 		}
 	}
-	if _, err := w.Write([]byte(`"` + node.Key + `":`)); err != nil {
+	if _, err := w.Write(node.Key); err != nil {
+		return err
+	}
+	if _, err := w.Write(jsonBytes[3:5]); err != nil {
 		return err
 	}
 	if node.Value != nil {

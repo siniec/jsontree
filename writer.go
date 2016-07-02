@@ -6,9 +6,10 @@ import (
 	"io"
 )
 
+var jsonBytes = []byte{'{', '"', '}', '"', ':'}
+
 type Writer struct {
 	w                ByteWriter
-	key              string
 	hasWrittenNode   bool
 	hasWrittenParent bool
 	closed           bool
@@ -24,7 +25,7 @@ func NewWriter(w io.Writer) *Writer {
 	return writer
 }
 
-func (writer *Writer) WriteParent(key string) error {
+func (writer *Writer) WriteParent(key []byte) error {
 	if writer.closed {
 		return errors.New("the writer is closed")
 	}
@@ -34,7 +35,13 @@ func (writer *Writer) WriteParent(key string) error {
 	if writer.hasWrittenParent {
 		return errors.New("WriteParent() has already been called")
 	}
-	if _, err := writer.w.Write([]byte(`{"` + key + `":`)); err != nil {
+	if _, err := writer.w.Write(jsonBytes[:2]); err != nil {
+		return err
+	}
+	if _, err := writer.w.Write(key); err != nil {
+		return err
+	}
+	if _, err := writer.w.Write(jsonBytes[3:5]); err != nil {
 		return err
 	}
 	writer.hasWrittenParent = true
