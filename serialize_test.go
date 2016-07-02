@@ -27,14 +27,40 @@ func TestSerializeNode(t *testing.T) {
 			},
 		},
 	}
-	var buf bytes.Buffer
-	want := `{"data":{"1":{"a":"v1","b":{"i":"v2"}},"2":{"a":"v3","b":{"i":"v4"}}}}`
+	const want = `{"data":{"1":{"a":"v1","b":{"i":"v2"}},"2":{"a":"v3","b":{"i":"v4"}}}}`
 
-	// SerializeTo()
-	if err := SerializeNode(node, &buf); err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if got := buf.String(); want != got {
-		t.Errorf("Wrong JSON written.\nWant %s\nGot  %s", want, got)
+	// Test successful serialization
+	{
+		var buf bytes.Buffer
+		if err := SerializeNode(node, &buf); err != nil {
+			t.Errorf("Unexpected error: %v", err)
+		} else if got := buf.String(); want != got {
+			t.Errorf("Wrong JSON written.\nWant %s\nGot  %s", want, got)
+		}
+	}
+
+	// Test error with writer
+	for i := 0; i <= len(want); i++ {
+		wantErr := fmt.Errorf("Test err")
+		w := &errWriter{
+			errIndex: i,
+			err:      wantErr,
+		}
+		gotErr := SerializeNode(node, w)
+		if !errEqual(wantErr, gotErr) {
+			t.Errorf("Wrong error returned\nWant %v\nGot  %v", wantErr, gotErr)
+		}
+	}
+
+	// Test serialization error
+	{
+		// Set one of the nodes' values to return an error when serializing
+		wantErr := fmt.Errorf("Serialize test err")
+		node.Nodes[0].Nodes[0].Value = valErr("", wantErr, nil)
+		gotErr := SerializeNode(node, ioutil.Discard)
+		if !errEqual(wantErr, gotErr) {
+			t.Errorf("Wrong error returned\nWant %v\nGot  %v", wantErr, gotErr)
+		}
 	}
 }
 
@@ -101,22 +127,50 @@ func BenchmarkNodeSerialization5(b *testing.B) { benchmarkNodeSerialization(5, b
 
 // =========== Utility =============
 
-type testValue []byte
+type testValue struct {
+	b            []byte
+	serializeErr error
+}
 
 func (v *testValue) Serialize() ([]byte, error) {
-	return *v, nil
+	if v.serializeErr != nil {
+		return nil, v.serializeErr
+	}
+	return v.b, nil
 }
 
 func (v *testValue) Deserialize(b []byte) error {
-	*v = b
+	v.b = b
 	return nil
 }
 
 func (v *testValue) Equal(other *testValue) bool {
-	return bytes.Equal(*v, *other)
+	return bytes.Equal(v.b, other.b)
 }
 
 func val(s string) *testValue {
-	v := testValue(s)
-	return &v
+	return valErr(s, nil, nil)
+}
+
+func valErr(s string, serializeErr, deserializeErr error) *testValue {
+	return &testValue{
+		b:            []byte(s),
+		serializeErr: serializeErr,
+	}
+}
+
+// errWriter writes the bytes passed to Write() until a certain number of
+// bytes has been written.
+type errWriter struct {
+	errIndex int   // number of bytes to write successfully, without returning error
+	err      error // error to return
+	count    int   // current number of bytes written
+}
+
+func (w *errWriter) Write(b []byte) (int, error) {
+	w.count += len(b)
+	if w.count >= w.errIndex {
+		return 0, w.err
+	}
+	return len(b), nil
 }

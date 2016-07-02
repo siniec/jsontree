@@ -4,7 +4,22 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strings"
 )
+
+type DeserializeError struct {
+	Got  byte
+	Want []byte
+}
+
+func (err *DeserializeError) Error() string {
+	wants := make([]string, len(err.Want))
+	for i, want := range err.Want {
+		wants[i] = string(want)
+	}
+	wantStr := strings.Join(wants, "' or '")
+	return fmt.Sprintf("Read '%s', expected '%s'", string(err.Got), wantStr)
+}
 
 type GetValueFn func() Value
 
@@ -28,8 +43,13 @@ func DeserializeNode(r io.Reader, getValFn GetValueFn) (*Node, error) {
 
 type readFn func() (next readFn, err error)
 
+type ReadPeeker interface {
+	ReadByte() (byte, error)
+	Peek(int) ([]byte, error)
+}
+
 type parser struct {
-	r     *bufio.Reader
+	r     ReadPeeker
 	valFn GetValueFn
 	next  readFn
 	err   error
@@ -41,8 +61,8 @@ type parser struct {
 
 func newParser(r io.Reader, getValFn GetValueFn) *parser {
 	p := &parser{valFn: getValFn}
-	if br, ok := r.(*bufio.Reader); ok {
-		p.r = br
+	if rp, ok := r.(ReadPeeker); ok {
+		p.r = rp
 	} else {
 		p.r = bufio.NewReader(r)
 	}
@@ -87,7 +107,7 @@ func (p *parser) readByte(bWant byte, next readFn) (readFn, error) {
 	if bGot, err := p.r.ReadByte(); err != nil {
 		return nil, err
 	} else if bGot != bWant {
-		return nil, fmt.Errorf("Read '%s', want '%s'", string(bGot), string(bWant))
+		return nil, &DeserializeError{Got: bGot, Want: []byte{bWant}}
 	} else {
 		return next, nil
 	}
@@ -119,7 +139,7 @@ func (p *parser) readCloseBracket() (readFn, error) {
 		case ',':
 			return p.readComma, nil
 		default:
-			return nil, fmt.Errorf(`Read '%s', want '{' or '"'`, string(bs))
+			return nil, &DeserializeError{Got: bs[0], Want: []byte{'}', ','}}
 		}
 	}
 }
@@ -175,7 +195,7 @@ func (p *parser) readQuotedKey() (readFn, error) {
 		case '"':
 			return p.readQuotedValue, nil
 		default:
-			return nil, fmt.Errorf(`Read %s, want '{' or '"'`, string(bs))
+			return nil, &DeserializeError{Got: bs[0], Want: []byte{'{', '"'}}
 		}
 	}
 }
@@ -197,7 +217,7 @@ func (p *parser) readQuotedValue() (readFn, error) {
 		case ',':
 			return p.readComma, nil
 		default:
-			return nil, fmt.Errorf(`Read '%s', want '}' or ','`, string(bs))
+			return nil, &DeserializeError{Got: bs[0], Want: []byte{'}', ','}}
 		}
 	}
 }

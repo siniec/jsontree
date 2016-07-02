@@ -74,6 +74,53 @@ func TestWriterWriteNode(t *testing.T) {
 	}
 }
 
+func TestWriterClose(t *testing.T) {
+	tests := []struct {
+		name   string
+		node   bool
+		parent bool
+		closed bool
+		want   string
+	}{
+		{
+			name:   "Closing closed writer does nothing",
+			closed: true,
+			want:   "",
+		},
+		{
+			name: "No nodes or parents have been written",
+			want: "{}",
+		},
+		{
+			name: "Only nodes have been written",
+			node: true,
+			want: "}",
+		},
+		{
+			name:   "Only parent has been written",
+			parent: true,
+			want:   "{}}",
+		},
+		{
+			name:   "Parent and nodes have been written",
+			node:   true,
+			parent: true,
+			want:   "}}",
+		},
+	}
+	for _, test := range tests {
+		var buf bytes.Buffer
+		w := NewWriter(&buf)
+		w.closed, w.hasWrittenNode, w.hasWrittenParent = test.closed, test.node, test.parent
+		if err := w.Close(); err != nil {
+			t.Errorf("%s: Close() returned error: %v", test.name, err)
+		}
+		if buf.String() != test.want {
+			t.Errorf("%s: Close() on closed writer wrote wrong contents\nWant %v\nGot  %v", test.name, test.want, buf.String())
+		}
+	}
+}
+
 func TestWriter(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -139,19 +186,19 @@ func TestWriter(t *testing.T) {
 		w := NewWriter(&buf)
 		if test.parent != "" {
 			if err := w.WriteParent(test.parent); err != nil {
-				t.Fatalf("WriteParent() returned error: %v", err)
+				t.Fatalf("%s: WriteParent() returned error: %v", test.name, err)
 			}
 		}
 		for _, node := range test.nodes {
 			if err := w.WriteNode(node); err != nil {
-				t.Fatalf("WriteNode() returned error: %v", err)
+				t.Fatalf("%s: WriteNode() returned error: %v", test.name, err)
 			}
 		}
 		if err := w.Close(); err != nil {
-			t.Fatalf("Close() returned error: %v", err)
+			t.Fatalf("%s: Close() returned error: %v", test.name, err)
 		}
 		if got := buf.String(); test.want != got {
-			t.Errorf("Wrong data saved\nWant %v\nGot  %v", test.want, got)
+			t.Errorf("%s: Wrong data saved\nWant %v\nGot  %v", test.name, test.want, got)
 		}
 		// Writing a node using SerializeNode() and by calling Writer w with w.WriteParent(node.Key)
 		// and then w.WriteNode() for each of node's Nodes should produce the same output
@@ -159,10 +206,73 @@ func TestWriter(t *testing.T) {
 			parent := &Node{Key: test.parent, Nodes: test.nodes}
 			var buf2 bytes.Buffer
 			if err := SerializeNode(parent, &buf2); err != nil {
-				t.Fatalf("SerializeNode() failed: %v", err)
+				t.Fatalf("%s: SerializeNode() failed: %v", test.name, err)
 			} else if want, got := buf2.String(), buf.String(); want != got {
-				t.Errorf("SerializeNode() and Writer do not produce the same result\nWant %v\nGot  %v", want, got)
+				t.Errorf("%s: SerializeNode() and Writer do not produce the same result\nWant %v\nGot  %v", test.name, want, got)
+			}
+		}
+
+		// Test writer error
+		for i := 0; i <= len(test.want); i++ {
+			wantErr := fmt.Errorf("Test err")
+			ew := &errWriter{
+				errIndex: i,
+				err:      wantErr,
+			}
+			w := NewWriter(ew)
+			// Write until we encounter an error
+			var gotErr error
+			if test.parent != "" {
+				gotErr = w.WriteParent(test.parent)
+			}
+			if gotErr == nil {
+				for _, node := range test.nodes {
+					if gotErr = w.WriteNode(node); gotErr != nil {
+						break
+					}
+				}
+			}
+			if gotErr == nil {
+				gotErr = w.Close()
+			}
+
+			if !errEqual(wantErr, gotErr) {
+				t.Errorf("%s: (errWriter(%d)) Wrong error returned\nWant %v\nGot  %v", test.name, i, wantErr, gotErr)
+			}
+		}
+
+		// Test node serialization error
+		if len(test.nodes) > 0 {
+			if leaf := findLeafNode(test.nodes); leaf != nil {
+				// Set one of the nodes' values to return an error when serializing
+				wantErr := fmt.Errorf("Serialize test err")
+				leaf.Value = valErr("", wantErr, nil)
+				var buf bytes.Buffer
+				w := NewWriter(&buf)
+				for _, node := range test.nodes {
+					if err := w.WriteNode(node); err != nil {
+						if !errEqual(wantErr, err) {
+							t.Errorf("%s: (serialization error) Wrong error returned\nWant %v\nGot  %v", test.name, wantErr, err)
+						}
+						break
+					}
+
+				}
 			}
 		}
 	}
+}
+
+func findLeafNode(nodes []*Node) *Node {
+	for _, node := range nodes {
+		if node.Value != nil {
+			return node
+		}
+	}
+	for _, node := range nodes {
+		if leaf := findLeafNode(node.Nodes); leaf != nil {
+			return leaf
+		}
+	}
+	return nil
 }
