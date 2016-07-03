@@ -9,41 +9,42 @@ type Value interface {
 	Deserialize([]byte) error
 }
 
-type Node struct {
-	Key   []byte
-	Value Value
-	Nodes []*Node
+type Node interface {
+	Key() []byte
+	SetKey(key []byte)
+	Value() Value
+	Nodes() []Node
+	AddNode(key []byte) Node
 }
 
-func (node *Node) get(path ...[]byte) *Node {
+func getNode(node Node, path ...[]byte) Node {
 	// no need to check len(path). get is only called by getOrAdd, which does that already
 	key := path[0]
-	for _, child := range node.Nodes {
-		if keyEqual(child.Key, key) {
+	for _, child := range node.Nodes() {
+		if keyEqual(child.Key(), key) {
 			if len(path) == 1 {
 				return child
 			} else {
-				return child.get(path[1:]...)
+				return getNode(child, path[1:]...)
 			}
 		}
 	}
 	return nil
 }
 
-func (node *Node) getOrAdd(path ...[]byte) *Node {
+func getOrAddNode(node Node, path ...[]byte) Node {
 	if len(path) == 0 {
 		return nil
 	}
 	key := path[0]
-	n := node.get(key)
+	n := getNode(node, key)
 	if n == nil {
-		n = &Node{Key: key}
-		node.Nodes = append(node.Nodes, n)
+		n = node.AddNode(key)
 	}
 	if len(path) == 1 {
 		return n
 	} else {
-		return n.getOrAdd(path[1:]...)
+		return getOrAddNode(n, path[1:]...)
 	}
 }
 

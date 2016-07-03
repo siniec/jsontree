@@ -21,24 +21,29 @@ func (err *DeserializeError) Error() string {
 	return fmt.Sprintf("Read '%s', expected '%s'", string(err.Got), wantStr)
 }
 
-type GetValueFn func() Value
-
-func DeserializeNode(r io.Reader, getValFn GetValueFn) (*Node, error) {
-	node := new(Node)
-	p := newParser(r, getValFn)
+func DeserializeNode(node Node, r io.Reader) error {
+	p := newParser(r)
 	for p.Scan() {
-		path, value := p.Data()
-		node.Key = path[0]
+		path, valBytes := p.Data()
+		node.SetKey(path[0]) // TODO: don't do this every iteration?
+		if len(valBytes) == 0 {
+			continue
+		}
+		var value Value
 		if len(path) == 1 {
-			if node.Value != nil {
-				return node, fmt.Errorf("invalid json. Expected 1 root node")
-			}
-			node.Value = value
+			// if node.Value != nil {
+			// return node, fmt.Errorf("invalid json. Expected 1 root node")
+			// }
+			value = node.Value()
 		} else {
-			node.getOrAdd(path[1:]...).Value = value
+			child := getOrAddNode(node, path[1:]...)
+			value = child.Value()
+		}
+		if err := value.Deserialize(valBytes); err != nil {
+			return err
 		}
 	}
-	return node, p.Err()
+	return p.Err()
 }
 
 type readFn func() (next readFn, err error)
@@ -50,17 +55,16 @@ type ReadPeeker interface {
 
 type parser struct {
 	r     ReadPeeker
-	valFn GetValueFn
 	next  readFn
 	err   error
 	mode  int
 	path  stack
-	value Value
+	value []byte
 	eof   bool
 }
 
-func newParser(r io.Reader, getValFn GetValueFn) *parser {
-	p := &parser{valFn: getValFn}
+func newParser(r io.Reader) *parser {
+	p := new(parser)
 	if rp, ok := r.(ReadPeeker); ok {
 		p.r = rp
 	} else {
@@ -85,10 +89,10 @@ func (p *parser) Scan() bool {
 	return true
 }
 
-func (p *parser) Data() (path [][]byte, value Value) {
+func (p *parser) Data() (path [][]byte, valueBytes []byte) {
 	path = p.path
-	value = p.value
-	return path, value
+	valueBytes = p.value
+	return path, valueBytes
 }
 
 func (p *parser) Err() error {
@@ -204,8 +208,7 @@ func (p *parser) readQuotedValue() (readFn, error) {
 	if bs, err := p.readQuotedString(); err != nil {
 		return nil, err
 	} else {
-		p.value = p.valFn()
-		p.err = p.value.Deserialize(bs)
+		p.value = bs
 	}
 	// Following the value is either a sibling node or a closing bracket
 	if bs, err := p.r.Peek(1); err != nil {

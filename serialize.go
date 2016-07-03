@@ -10,7 +10,7 @@ type ByteWriter interface {
 	io.ByteWriter
 }
 
-func SerializeNode(node *Node, w io.Writer) error {
+func SerializeNode(node Node, w io.Writer) error {
 	var bw ByteWriter
 	if _bw, ok := w.(ByteWriter); ok {
 		bw = _bw
@@ -20,7 +20,7 @@ func SerializeNode(node *Node, w io.Writer) error {
 	return serializeNode(node, bw, true)
 }
 
-func serializeNode(node *Node, w ByteWriter, wrapped bool) error {
+func serializeNode(node Node, w ByteWriter, wrapped bool) error {
 	if wrapped {
 		if _, err := w.Write(jsonBytes[:2]); err != nil {
 			return err
@@ -30,20 +30,22 @@ func serializeNode(node *Node, w ByteWriter, wrapped bool) error {
 			return err
 		}
 	}
-	if _, err := w.Write(node.Key); err != nil {
+	if _, err := w.Write(node.Key()); err != nil {
 		return err
 	}
 	if _, err := w.Write(jsonBytes[3:5]); err != nil {
 		return err
 	}
-	if node.Value != nil {
-		if err := serializeValue(node.Value, w); err != nil {
+	if nodes := node.Nodes(); len(nodes) > 0 {
+		if err := serializeNodes(nodes, w); err != nil {
 			return err
 		}
-	} else {
-		if err := serializeNodes(node.Nodes, w); err != nil {
+	} else if value := node.Value(); value != nil {
+		if err := serializeValue(node.Value(), w); err != nil {
 			return err
 		}
+		// } else {
+		// 	return fmt.Errorf("len(node.Nodes()) == 0 and node.Value() == nil")
 	}
 	if wrapped {
 		if err := w.WriteByte('}'); err != nil {
@@ -68,7 +70,7 @@ func serializeValue(value Value, w ByteWriter) error {
 	return nil
 }
 
-func serializeNodes(nodes []*Node, w ByteWriter) error {
+func serializeNodes(nodes []Node, w ByteWriter) error {
 	if err := w.WriteByte('{'); err != nil {
 		return err
 	}

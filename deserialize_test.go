@@ -33,63 +33,63 @@ func TestDeserializeNode(t *testing.T) {
 	tests := []struct {
 		in    string
 		weird bool // signal not to try creating invalid JSON out of this test input
-		want  *Node
+		want  *testNode
 		err   error
 	}{
 		{
 			// Top level is leaf
 			in:   `{"a":"b"}`,
-			want: &Node{Key: key("a"), Value: val("b")},
+			want: &testNode{key: key("a"), value: val("b")},
 		},
 		{
 			// Sibling leaf nodes
 			in: `{"root":{"a":"b","c":"d"}}`,
-			want: &Node{Key: key("root"), Nodes: []*Node{
-				{Key: key("a"), Value: val("b")},
-				{Key: key("c"), Value: val("d")},
+			want: &testNode{key: key("root"), nodes: []*testNode{
+				{key: key("a"), value: val("b")},
+				{key: key("c"), value: val("d")},
 			}},
 		},
 		{
 			// Sibling non-leaf nodes
 			in: `{"root":{"a":{"a1":"v1"},"b":{"b1":"v2"}}}`,
-			want: &Node{Key: key("root"), Nodes: []*Node{
-				{Key: key("a"), Nodes: []*Node{
-					{Key: key("a1"), Value: val("v1")},
+			want: &testNode{key: key("root"), nodes: []*testNode{
+				{key: key("a"), nodes: []*testNode{
+					{key: key("a1"), value: val("v1")},
 				}},
-				{Key: key("b"), Nodes: []*Node{
-					{Key: key("b1"), Value: val("v2")},
+				{key: key("b"), nodes: []*testNode{
+					{key: key("b1"), value: val("v2")},
 				}},
 			}},
 		},
 		{
 			// Leaf nodes on different levels
 			in: `{"root":{"a":"v1","b":{"b1":{"b11":"v3"},"b2":"v2"}}}`,
-			want: &Node{Key: key("root"), Nodes: []*Node{
-				{Key: key("a"), Value: val("v1")},
-				{Key: key("b"), Nodes: []*Node{
-					{Key: key("b1"), Nodes: []*Node{
-						{Key: key("b11"), Value: val("v3")},
+			want: &testNode{key: key("root"), nodes: []*testNode{
+				{key: key("a"), value: val("v1")},
+				{key: key("b"), nodes: []*testNode{
+					{key: key("b1"), nodes: []*testNode{
+						{key: key("b11"), value: val("v3")},
 					}},
-					{Key: key("b2"), Value: val("v2")},
+					{key: key("b2"), value: val("v2")},
 				}},
 			}},
 		},
 		{
 			// Nodes are ordered non-alphabetically
 			in: `{"root":{"b":"3","c":"1","a":"2"}}`,
-			want: &Node{Key: key("root"), Nodes: []*Node{
-				{Key: key("b"), Value: val("3")},
-				{Key: key("c"), Value: val("1")},
-				{Key: key("a"), Value: val("2")},
+			want: &testNode{key: key("root"), nodes: []*testNode{
+				{key: key("b"), value: val("3")},
+				{key: key("c"), value: val("1")},
+				{key: key("a"), value: val("2")},
 			}},
 		},
 		// Weird but valid input
 		{
 			in:    `{"ro\"ot":{"{a}":"\"hello\"","b}":"\\backslash\nnewline"}}`,
 			weird: true,
-			want: &Node{Key: key(`ro\"ot`), Nodes: []*Node{
-				{Key: key(`{a}`), Value: val(`\"hello\"`)},
-				{Key: key(`b}`), Value: val(`\\backslash\nnewline`)},
+			want: &testNode{key: key(`ro\"ot`), nodes: []*testNode{
+				{key: key(`{a}`), value: val(`\"hello\"`)},
+				{key: key(`b}`), value: val(`\\backslash\nnewline`)},
 			}},
 		},
 		// Handling invalid input. See also section Test unexpected tokens (invalid JSON) below
@@ -111,11 +111,12 @@ func TestDeserializeNode(t *testing.T) {
 			in:  `{"a":"b","c":"d"}`,
 			err: fmt.Errorf("invalid json. Expected 1 root node"),
 		},
+		// TODO: must also test `{"a":{"b":"c"},"d":{"e":"f"}}`. That won't return an error, the way it is now. Use a local bool to track instead?
 	}
-	getValFn := func() Value { return new(testValue) }
 	for _, test := range tests {
 		r := bytes.NewReader([]byte(test.in))
-		node, err := DeserializeNode(r, getValFn)
+		node := new(testNode)
+		err := DeserializeNode(node, r)
 		if test.err != nil {
 			if !errEqual(test.err, err) {
 				t.Errorf("%s\nWrong error.\nWant %v\nGot  %v", test.in, test.err, err)
@@ -143,7 +144,7 @@ func TestDeserializeNode(t *testing.T) {
 						err:      wantErr,
 					},
 				}
-				_, gotErr := DeserializeNode(r, getValFn)
+				gotErr := DeserializeNode(new(testNode), r)
 				if !errEqual(wantErr, gotErr) {
 					t.Errorf("%s (errReader(%d)\nWrong error.\nWant %v\nGot  %v", test.in, i, wantErr, gotErr)
 				}
@@ -156,7 +157,7 @@ func TestDeserializeNode(t *testing.T) {
 					readErr:  wantErr,
 					errIndex: i,
 				}
-				_, gotErr := DeserializeNode(r, getValFn)
+				gotErr := DeserializeNode(new(testNode), r)
 				if r.peekCount < i {
 					// we've reached the max number of Peek() calls for this input
 					break
@@ -179,7 +180,7 @@ func TestDeserializeNode(t *testing.T) {
 					// Replace the character with a ?. Eg for {"a":"b"}, we test [?, {?, {"a?, {"a"?, {"a":?, ...]
 					invalidJSON := validJSON[:i] + "?"
 					r := strings.NewReader(invalidJSON)
-					_, err := DeserializeNode(r, getValFn)
+					err := DeserializeNode(new(testNode), r)
 					if _, ok := err.(*DeserializeError); !ok {
 						t.Errorf(`DeserializeNode(%s): Wrong error type. Want DeserializeError, got %T ("%v")`, invalidJSON, err, err)
 					}
@@ -198,7 +199,6 @@ func benchmarkNodeDeserialization(n int, b *testing.B) {
 	if err := SerializeNode(node, &buf); err != nil {
 		panic(err)
 	}
-	getValFn := func() Value { return new(testValue) }
 	r := new(bytes.Buffer)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -206,7 +206,7 @@ func benchmarkNodeDeserialization(n int, b *testing.B) {
 		if _, err := r.Write(buf.Bytes()); err != nil {
 			b.Fatalf("r.Write() error: %v", err)
 		}
-		if _, err := DeserializeNode(r, getValFn); err != nil {
+		if err := DeserializeNode(new(testNode), r); err != nil {
 			b.Fatalf("Error: %v", err)
 		}
 	}
@@ -220,8 +220,11 @@ func BenchmarkNodeDeserialization5(b *testing.B) { benchmarkNodeDeserialization(
 
 // ========== Utility ==========
 
-func nodeString(node *Node) string {
+func nodeString(node Node) string {
 	if node == nil {
+		return "<nil>"
+	}
+	if node, ok := node.(*testNode); ok && node == nil {
 		return "<nil>"
 	}
 	var buf bytes.Buffer
@@ -232,35 +235,35 @@ func nodeString(node *Node) string {
 	}
 }
 
-func nodesString(nodes []*Node) string {
-	s := make([]string, len(nodes))
-	for i, node := range nodes {
-		s[i] = nodeString(node)
-	}
-	return "\t" + strings.Join(s, "\n\t")
-}
-
 func errEqual(want, got error) bool {
 	return got != nil && want.Error() == got.Error()
 }
 
-func nodeEqual(want, got *Node) bool {
+func nodeEqual(_want, _got Node) bool {
+	if _got == nil {
+		return false
+	}
+	want := _want.(*testNode)
+	got := _got.(*testNode)
+	if want == nil {
+		return got == nil
+	}
 	if got == nil {
 		return false
 	}
-	if !keyEqual(got.Key, want.Key) {
+	if !keyEqual(got.key, want.key) {
 		return false
 	}
-	if (got.Value == nil && want.Value != nil) || (got.Value != nil && want.Value == nil) {
+	if (got.value == nil && want.value != nil) || (got.value != nil && want.value == nil) {
 		return false
 	}
-	if got.Value != nil && !got.Value.(*testValue).Equal(want.Value.(*testValue)) {
+	if got.value != nil && !got.value.Equal(want.value) {
 		return false
 	}
-	return nodesEqual(want.Nodes, got.Nodes)
+	return nodesEqual(want.Nodes(), got.Nodes())
 }
 
-func nodesEqual(want, got []*Node) bool {
+func nodesEqual(want, got []Node) bool {
 	if len(got) != len(want) || (got == nil && want != nil) || (got != nil && want == nil) {
 		return false
 	}

@@ -8,21 +8,21 @@ import (
 )
 
 func TestSerializeNode(t *testing.T) {
-	node := &Node{
-		Key: key("data"),
-		Nodes: []*Node{
+	node := &testNode{
+		key: key("data"),
+		nodes: []*testNode{
 			{
-				Key: key("1"),
-				Nodes: []*Node{
-					{Key: key("a"), Value: val("v1")},
-					{Key: key("b"), Nodes: []*Node{{Key: key("i"), Value: val("v2")}}},
+				key: key("1"),
+				nodes: []*testNode{
+					{key: key("a"), value: val("v1")},
+					{key: key("b"), nodes: []*testNode{{key: key("i"), value: val("v2")}}},
 				},
 			},
 			{
-				Key: key("2"),
-				Nodes: []*Node{
-					{Key: key("a"), Value: val("v3")},
-					{Key: key("b"), Nodes: []*Node{{Key: key("i"), Value: val("v4")}}},
+				key: key("2"),
+				nodes: []*testNode{
+					{key: key("a"), value: val("v3")},
+					{key: key("b"), nodes: []*testNode{{key: key("i"), value: val("v4")}}},
 				},
 			},
 		},
@@ -56,7 +56,7 @@ func TestSerializeNode(t *testing.T) {
 	{
 		// Set one of the nodes' values to return an error when serializing
 		wantErr := fmt.Errorf("Serialize test err")
-		node.Nodes[0].Nodes[0].Value = valErr("", wantErr, nil)
+		node.nodes[0].nodes[0].value = valErr("", wantErr, nil)
 		gotErr := SerializeNode(node, ioutil.Discard)
 		if !errEqual(wantErr, gotErr) {
 			t.Errorf("Wrong error returned\nWant %v\nGot  %v", wantErr, gotErr)
@@ -66,18 +66,18 @@ func TestSerializeNode(t *testing.T) {
 
 // ========== Benchmarking ==========
 
-func getTestNode(width, depth int) *Node {
-	var fn func(i, width, depth int) *Node
-	fn = func(i, width, depth int) *Node {
-		node := &Node{
-			Key: key(fmt.Sprintf("%d_%d", depth, i)),
+func getTestNode(width, depth int) *testNode {
+	var fn func(i, width, depth int) *testNode
+	fn = func(i, width, depth int) *testNode {
+		node := &testNode{
+			key: key(fmt.Sprintf("%d_%d", depth, i)),
 		}
 		if depth == 0 {
-			node.Value = val("NodeVal")
+			node.value = val("NodeVal")
 		} else {
-			node.Nodes = make([]*Node, width)
+			node.nodes = make([]*testNode, width)
 			for i := 0; i < width; i++ {
-				node.Nodes[i] = fn(i, width, depth-1)
+				node.nodes[i] = fn(i, width, depth-1)
 			}
 		}
 		return node

@@ -48,7 +48,7 @@ func (writer *Writer) WriteParent(key []byte) error {
 	return nil
 }
 
-func (writer *Writer) WriteNode(node *Node) error {
+func (writer *Writer) WriteNode(node Node) error {
 	if writer.closed {
 		return errors.New("the writer is closed")
 	}
