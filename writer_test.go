@@ -281,7 +281,7 @@ func TestWriter(t *testing.T) {
 // ========== Benchmarking ==========
 
 func benchmarkWriter(n int, b *testing.B) {
-	node := getTestNode(n-1, n-1)
+	node := getTestNode(n, n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		w := NewWriter(discardWriter{})
@@ -319,7 +319,7 @@ func (mw *memWriter) Write(p []byte) (int, error) {
 
 func findLeafNode(nodes []*testNode) *testNode {
 	for _, node := range nodes {
-		if node.Value != nil {
+		if len(node.nodes) == 0 {
 			return node
 		}
 	}

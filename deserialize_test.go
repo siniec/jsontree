@@ -194,7 +194,7 @@ func TestDeserializeNode(t *testing.T) {
 // ========== Benchmarking ==========
 
 func benchmarkNodeDeserialization(n int, b *testing.B) {
-	node := getTestNode(n-1, n-1)
+	node := getTestNode(n, n)
 	var buf bytes.Buffer
 	if err := SerializeNode(node, &buf); err != nil {
 		panic(err)

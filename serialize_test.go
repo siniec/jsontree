@@ -136,7 +136,7 @@ func getTestNode(width, depth int) *testNode {
 }
 
 func benchmarkNodeSerialization(n int, b *testing.B) {
-	node := getTestNode(n-1, n-1)
+	node := getTestNode(n, n)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if err := SerializeNode(node, discardWriter{}); err != nil {
