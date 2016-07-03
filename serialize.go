@@ -2,6 +2,7 @@ package jsontree
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 )
 
@@ -11,6 +12,9 @@ type ByteWriter interface {
 }
 
 func SerializeNode(node Node, w io.Writer) error {
+	if node == nil {
+		return fmt.Errorf("node is nil")
+	}
 	var bw ByteWriter
 	if _bw, ok := w.(ByteWriter); ok {
 		bw = _bw
@@ -41,11 +45,11 @@ func serializeNode(node Node, w ByteWriter, wrapped bool) error {
 			return err
 		}
 	} else if value := node.Value(); value != nil {
-		if err := serializeValue(node.Value(), w); err != nil {
+		if err := serializeValue(value, w); err != nil {
 			return err
 		}
-		// } else {
-		// 	return fmt.Errorf("len(node.Nodes()) == 0 and node.Value() == nil")
+	} else {
+		return fmt.Errorf("invalid node: len(node.Nodes()) == 0 and node.Value() == nil")
 	}
 	if wrapped {
 		if err := w.WriteByte('}'); err != nil {
@@ -75,8 +79,11 @@ func serializeNodes(nodes []Node, w ByteWriter) error {
 		return err
 	}
 	n := len(nodes)
-	for i, child := range nodes {
-		if err := serializeNode(child, w, false); err != nil {
+	for i, node := range nodes {
+		if node == nil {
+			return fmt.Errorf("invalid node: node.Nodes() contained nil")
+		}
+		if err := serializeNode(node, w, false); err != nil {
 			return err
 		}
 		if hasMoreChildren := i < n-1; hasMoreChildren {

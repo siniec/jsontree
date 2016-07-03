@@ -3,6 +3,7 @@ package jsontree
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -70,12 +71,10 @@ func (writer *Writer) Close() error {
 	if writer.closed {
 		return nil
 	}
-	w := writer.w
 	if !writer.hasWrittenNode {
-		if err := w.WriteByte('{'); err != nil {
-			return err
-		}
+		return fmt.Errorf("must write atleast one node before closing")
 	}
+	w := writer.w
 	if err := w.WriteByte('}'); err != nil {
 		return err
 	}

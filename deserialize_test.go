@@ -236,7 +236,7 @@ func nodeString(node Node) string {
 }
 
 func errEqual(want, got error) bool {
-	return got != nil && want.Error() == got.Error()
+	return want == got || (got != nil && want.Error() == got.Error())
 }
 
 func nodeEqual(_want, _got Node) bool {

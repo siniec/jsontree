@@ -69,9 +69,7 @@ func TestWriterWriteParent(t *testing.T) {
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		if err := w.Close(); err != nil {
-			t.Fatalf("Close() return error: %v", err)
-		}
+		w.closed = true
 		l := buf.Len()
 		want := fmt.Errorf("the writer is closed")
 		if err := w.WriteParent(parentKey); !errEqual(want, err) {
@@ -87,9 +85,7 @@ func TestWriterWriteNode(t *testing.T) {
 	{
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
-		if err := w.Close(); err != nil {
-			t.Fatalf("Close() return error: %v", err)
-		}
+		w.closed = true
 		l := buf.Len()
 		node := &testNode{key: key("k"), value: val("v")}
 		want := fmt.Errorf("the writer is closed")
@@ -108,6 +104,7 @@ func TestWriterClose(t *testing.T) {
 		parent bool
 		closed bool
 		want   string
+		err    error
 	}{
 		{
 			name:   "Closing closed writer does nothing",
@@ -116,7 +113,8 @@ func TestWriterClose(t *testing.T) {
 		},
 		{
 			name: "No nodes or parents have been written",
-			want: "{}",
+			want: "",
+			err:  fmt.Errorf("must write atleast one node before closing"),
 		},
 		{
 			name: "Only nodes have been written",
@@ -126,7 +124,8 @@ func TestWriterClose(t *testing.T) {
 		{
 			name:   "Only parent has been written",
 			parent: true,
-			want:   "{}}",
+			want:   "",
+			err:    fmt.Errorf("must write atleast one node before closing"),
 		},
 		{
 			name:   "Parent and nodes have been written",
@@ -139,8 +138,8 @@ func TestWriterClose(t *testing.T) {
 		var buf bytes.Buffer
 		w := NewWriter(&buf)
 		w.closed, w.hasWrittenNode, w.hasWrittenParent = test.closed, test.node, test.parent
-		if err := w.Close(); err != nil {
-			t.Errorf("%s: Close() returned error: %v", test.name, err)
+		if err := w.Close(); !errEqual(test.err, err) {
+			t.Errorf("%s: Close() returned wrong error\nWant %v\nGot  %v", test.name, test.err, err)
 		}
 		if buf.String() != test.want {
 			t.Errorf("%s: Close() on closed writer wrote wrong contents\nWant %v\nGot  %v", test.name, test.want, buf.String())
@@ -155,17 +154,6 @@ func TestWriter(t *testing.T) {
 		nodes  []*testNode
 		want   string
 	}{
-		{
-			name:  "Empty slice => {}",
-			nodes: nil,
-			want:  "{}",
-		},
-		{
-			name:   "Empty slice with parent",
-			parent: "root",
-			nodes:  nil,
-			want:   `{"root":{}}`,
-		},
 		{
 			name: "Normal nodes slice without parent",
 			nodes: []*testNode{

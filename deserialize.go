@@ -23,17 +23,19 @@ func (err *DeserializeError) Error() string {
 
 func DeserializeNode(node Node, r io.Reader) error {
 	p := newParser(r)
+	isKeySet := false
 	for p.Scan() {
 		path, valBytes := p.Data()
-		node.SetKey(path[0]) // TODO: don't do this every iteration?
-		if len(valBytes) == 0 {
-			continue
+		n := len(path)
+		if n == 1 && isKeySet {
+			return fmt.Errorf("invalid json. Expected 1 root node")
+		}
+		if !isKeySet {
+			node.SetKey(path[0])
+			isKeySet = true
 		}
 		var value Value
-		if len(path) == 1 {
-			// if node.Value != nil {
-			// return node, fmt.Errorf("invalid json. Expected 1 root node")
-			// }
+		if n == 1 {
 			value = node.Value()
 		} else {
 			child := getOrAddNode(node, path[1:]...)

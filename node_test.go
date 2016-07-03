@@ -106,10 +106,12 @@ func TestNodeGetOrAdd(t *testing.T) {
 // ========== Utility ==========
 
 type testNode struct {
-	key    []byte
-	value  *testValue
-	nodes  []*testNode
-	_nodes [100]Node
+	key      []byte
+	value    *testValue
+	nodes    []*testNode
+	nilVal   bool // whether or not Value() should return nil
+	nilNodes bool // whether or not Nodes() shuuld return []Node{nil}
+	_nodes   [100]Node
 }
 
 func (n *testNode) Key() []byte {
@@ -122,12 +124,19 @@ func (n *testNode) SetKey(key []byte) {
 
 func (n *testNode) Value() Value {
 	if n.value == nil {
-		n.value = new(testValue)
+		if n.nilVal {
+			return nil
+		} else {
+			n.value = new(testValue)
+		}
 	}
 	return n.value
 }
 
 func (n *testNode) Nodes() []Node {
+	if n.nilNodes {
+		return []Node{nil}
+	}
 	for i, node := range n.nodes {
 		n._nodes[i] = node
 	}
