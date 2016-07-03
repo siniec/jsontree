@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-var jsonBytes = []byte{'{', '"', '}', '"', ':'}
+var jsonBytes = []byte{'{', '"', ':'}
 
 type Writer struct {
 	w                ByteWriter
@@ -36,13 +36,13 @@ func (writer *Writer) WriteParent(key []byte) error {
 	if writer.hasWrittenParent {
 		return errors.New("WriteParent() has already been called")
 	}
-	if _, err := writer.w.Write(jsonBytes[:2]); err != nil {
+	if _, err := writer.w.Write(jsonBytes[:2]); err != nil { // write {"
 		return err
 	}
 	if _, err := writer.w.Write(key); err != nil {
 		return err
 	}
-	if _, err := writer.w.Write(jsonBytes[3:5]); err != nil {
+	if _, err := writer.w.Write(jsonBytes[1:]); err != nil { // write ":
 		return err
 	}
 	writer.hasWrittenParent = true
@@ -64,7 +64,7 @@ func (writer *Writer) WriteNode(node Node) error {
 			return err
 		}
 	}
-	return serializeNode(node, w, false)
+	return serializeNode(node, w)
 }
 
 func (writer *Writer) Close() error {

@@ -21,23 +21,23 @@ func SerializeNode(node Node, w io.Writer) error {
 	} else {
 		bw = bufio.NewWriter(w)
 	}
-	return serializeNode(node, bw, true)
+	if err := bw.WriteByte('{'); err != nil {
+		return err
+	}
+	if err := serializeNode(node, bw); err != nil {
+		return err
+	}
+	return bw.WriteByte('}')
 }
 
-func serializeNode(node Node, w ByteWriter, wrapped bool) error {
-	if wrapped {
-		if _, err := w.Write(jsonBytes[:2]); err != nil {
-			return err
-		}
-	} else {
-		if err := w.WriteByte('"'); err != nil {
-			return err
-		}
+func serializeNode(node Node, w ByteWriter) error {
+	if err := w.WriteByte('"'); err != nil {
+		return err
 	}
 	if _, err := w.Write(node.Key()); err != nil {
 		return err
 	}
-	if _, err := w.Write(jsonBytes[3:5]); err != nil {
+	if _, err := w.Write(jsonBytes[1:]); err != nil { // write ":
 		return err
 	}
 	if nodes := node.Nodes(); len(nodes) > 0 {
@@ -50,11 +50,6 @@ func serializeNode(node Node, w ByteWriter, wrapped bool) error {
 		}
 	} else {
 		return fmt.Errorf("invalid node: len(node.Nodes()) == 0 and node.Value() == nil")
-	}
-	if wrapped {
-		if err := w.WriteByte('}'); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -83,7 +78,7 @@ func serializeNodes(nodes []Node, w ByteWriter) error {
 		if node == nil {
 			return fmt.Errorf("invalid node: node.Nodes() contained nil")
 		}
-		if err := serializeNode(node, w, false); err != nil {
+		if err := serializeNode(node, w); err != nil {
 			return err
 		}
 		if hasMoreChildren := i < n-1; hasMoreChildren {
