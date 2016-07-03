@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"testing"
 )
 
@@ -215,14 +216,21 @@ func TestWriter(t *testing.T) {
 		if got := buf.String(); test.want != got {
 			t.Errorf("%s: Wrong data saved\nWant %v\nGot  %v", test.name, test.want, got)
 		}
+
 		// Writing a node using SerializeNode() and by calling Writer w with w.WriteParent(node.Key)
 		// and then w.WriteNode() for each of node's Nodes should produce the same output
-		if test.parent != "" {
-			parent := &testNode{key: key(test.parent), nodes: test.nodes}
+		{
+			want := buf.String()
+			parentKey := test.parent
+			if parentKey == "" {
+				parentKey = "r00t"
+				want = `{"r00t":` + want + `}`
+			}
+			parent := &testNode{key: key(parentKey), nodes: test.nodes}
 			var buf2 bytes.Buffer
 			if err := SerializeNode(parent, &buf2); err != nil {
 				t.Fatalf("%s: SerializeNode() failed: %v", test.name, err)
-			} else if want, got := buf2.String(), buf.String(); want != got {
+			} else if got := buf2.String(); want != got {
 				t.Errorf("%s: SerializeNode() and Writer do not produce the same result\nWant %v\nGot  %v", test.name, want, got)
 			}
 		}
@@ -255,25 +263,14 @@ func TestWriter(t *testing.T) {
 				t.Errorf("%s: (errWriter(%d)) Wrong error returned\nWant %v\nGot  %v", test.name, i, wantErr, gotErr)
 			}
 		}
-
-		// Test node serialization error
-		if len(test.nodes) > 0 {
-			if leaf := findLeafNode(test.nodes); leaf != nil {
-				// Set one of the nodes' values to return an error when serializing
-				wantErr := fmt.Errorf("Serialize test err")
-				leaf.value = valErr("", wantErr, nil)
-				var buf bytes.Buffer
-				w := NewWriter(&buf)
-				for _, node := range test.nodes {
-					if err := w.WriteNode(node); err != nil {
-						if !errEqual(wantErr, err) {
-							t.Errorf("%s: (serialization error) Wrong error returned\nWant %v\nGot  %v", test.name, wantErr, err)
-						}
-						break
-					}
-
-				}
-			}
+	}
+	// Test node serialization error
+	{
+		wantErr := fmt.Errorf("Test err")
+		node := &testNode{key: key("a"), value: valErr("", wantErr, nil)}
+		w := NewWriter(ioutil.Discard)
+		if err := w.WriteNode(node); !errEqual(wantErr, err) {
+			t.Errorf("w.WriteNode() on node with serialization error. Wrong error returned\nWant %v\nGot  %v", wantErr, err)
 		}
 	}
 }
@@ -315,18 +312,4 @@ type memWriter struct {
 func (mw *memWriter) Write(p []byte) (int, error) {
 	mw.bs = append(mw.bs, p...)
 	return len(p), nil
-}
-
-func findLeafNode(nodes []*testNode) *testNode {
-	for _, node := range nodes {
-		if len(node.nodes) == 0 {
-			return node
-		}
-	}
-	for _, node := range nodes {
-		if leaf := findLeafNode(node.nodes); leaf != nil {
-			return leaf
-		}
-	}
-	return nil
 }

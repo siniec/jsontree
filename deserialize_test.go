@@ -189,6 +189,15 @@ func TestDeserializeNode(t *testing.T) {
 			}
 		}
 	}
+	// Test node value deserialization error
+	{
+		wantErr := fmt.Errorf("Test err")
+		r := strings.NewReader(`{"a":"b"}`)
+		node := &testNode{value: valErr("", nil, wantErr)}
+		if err := DeserializeNode(node, r); !errEqual(wantErr, err) {
+			t.Errorf("DeserializeNode() on node with value with deserialization error. Wrong error returned\nWant %v\nGot  %v", wantErr, err)
+		}
+	}
 }
 
 // ========== Benchmarking ==========

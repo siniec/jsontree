@@ -154,8 +154,9 @@ func BenchmarkNodeSerialization5(b *testing.B) { benchmarkNodeSerialization(5, b
 // =========== Utility =============
 
 type testValue struct {
-	b            []byte
-	serializeErr error
+	b              []byte
+	serializeErr   error
+	deserializeErr error
 }
 
 func (v *testValue) Serialize() ([]byte, error) {
@@ -166,6 +167,9 @@ func (v *testValue) Serialize() ([]byte, error) {
 }
 
 func (v *testValue) Deserialize(b []byte) error {
+	if v.deserializeErr != nil {
+		return v.deserializeErr
+	}
 	v.b = b
 	return nil
 }
@@ -180,8 +184,9 @@ func val(s string) *testValue {
 
 func valErr(s string, serializeErr, deserializeErr error) *testValue {
 	return &testValue{
-		b:            []byte(s),
-		serializeErr: serializeErr,
+		b:              []byte(s),
+		serializeErr:   serializeErr,
+		deserializeErr: deserializeErr,
 	}
 }
 
